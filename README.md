@@ -54,9 +54,11 @@ User 和不同角色各有独立衣柜，各自激活各自的穿搭，互不干
 
 ## 📦 安装
 
-1. 下载 `Outfit-Manager` 文件夹
-2. 放入 `SillyTavern/public/scripts/extensions/third-party/`
-3. 重启酒馆 → 扩展管理 → 启用 → 完成
+1. 酒馆 → 扩展管理 → 点击「安装插件」
+2. 输入 URL：`https://github.com/gabby1111111111/Outfit-Manager`
+3. 点击安装 → 重启酒馆 → 启用 → 完成
+
+> 或手动：下载文件夹放入 `SillyTavern/public/scripts/extensions/third-party/Outfit-Manager/`
 
 ---
 
