@@ -61,7 +61,7 @@
             if (!db) { try { localStorage.setItem('outfit_mgr_v4', JSON.stringify(d)); } catch (e) {} if (cb) cb(); return; }
             var tx = db.transaction(STORE_NAME, 'readwrite');
             tx.objectStore(STORE_NAME).put(d, DATA_KEY);
-            tx.oncomplete = function () { if (cb) cb(); };
+            tx.oncomplete = function () { try { localStorage.setItem('outfit_mgr_v4_backup', JSON.stringify(d)); } catch (e) {} if (cb) cb(); };
             tx.onerror = function () { if (cb) cb(); };
         });
     }
@@ -1362,7 +1362,7 @@
         // Collect all unique scene tags
         var sceneTags = [];
         allOutfits.forEach(function(o) { if (o.sceneTag && o.sceneTag.trim() && sceneTags.indexOf(o.sceneTag.trim()) === -1) sceneTags.push(o.sceneTag.trim()); }); if (typeof wbMode !== 'undefined' && wbMode) { var wbOnlyChecked = document.getElementById('om-qs-wbonly') ? document.getElementById('om-qs-wbonly').checked : false; var outfits = wbOnlyChecked ? [] : getViewOutfits(d).filter(function(o) { return o.sceneTag && o.sceneTag.trim() === scene; }); getWorldBookStyles().forEach(function(ws) { if (ws.scene && ws.scene.trim() && sceneTags.indexOf(ws.scene.trim()) === -1) sceneTags.push(ws.scene.trim()); }); }
-        if (sceneTags.length === 0) { el.innerHTML = ''; return; }
+        if (sceneTags.length === 0) { if (typeof wbMode !== 'undefined' && wbMode) { var wbScenes = []; var wbStyles = typeof worldBookStylesModern !== 'undefined' ? worldBookStylesModern : []; wbStyles.forEach(function(ws) { if (ws.scene && wbScenes.indexOf(ws.scene) === -1) wbScenes.push(ws.scene); }); sceneTags = wbScenes.slice(0, 6); if (sceneTags.length === 0) { el.innerHTML = ''; return; } } else { el.innerHTML = ''; return; } }
         // Limit to first 6
         sceneTags = sceneTags.slice(0, 6);
         var wbOnlyQS = false; el.innerHTML = '<label style="display:flex;align-items:center;gap:4px;font-size:.65em;opacity:.7;margin-right:4px;cursor:pointer;white-space:nowrap"><input type="checkbox" id="om-qs-wbonly" style="margin:0" /> 仅世界书</label>' + sceneTags.map(function(tag) {
