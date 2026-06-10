@@ -25,6 +25,16 @@
 
 ---
 
+![主面板](screenshots/main-panel.png)
+
+![批量添加](screenshots/batch-add.png)
+
+![场景切换](screenshots/scene-switch.png)
+
+![设置](screenshots/settings.png)
+
+---
+
 ## 📦 安装
 
 ```
