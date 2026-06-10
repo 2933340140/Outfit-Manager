@@ -3094,8 +3094,16 @@
                 d.virtualOutfits[o.id] = o;
                 d.activeIds = [o.id];
                 save(d);
-                if (typeof toast !== 'undefined') toast('今日穿搭：「' + pick.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）', false, 4000);
+                if (typeof toast !== 'undefined') setTimeout(function() { toast('今日穿搭：「' + pick.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）', false, 4000); }, 3500);
             }
+        } else if (d.activeIds && d.activeIds.length > 0) {
+            // Show existing active outfit on restart
+            var names = [];
+            d.activeIds.forEach(function (id) {
+                var o = getById(d, id);
+                if (o) names.push(o.name);
+            });
+            if (names.length > 0 && typeof toast !== 'undefined') setTimeout(function() { toast('今日穿搭：「' + names.join('、') + '」', false, 4000); }, 3500);
         }
         dataCache = d;
         if (d.useMainApi !== false) autoDetectApiConfig(d);
