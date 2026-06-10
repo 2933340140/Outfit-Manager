@@ -88,7 +88,8 @@
         if (!d.chars) d.chars = {};
         if (!d.charNames) d.charNames = [];
         if (!d.apiVision) d.apiVision = def().apiVision;
-        else { var dv = def().apiVision; for (var vk in dv) { if (d.apiVision[vk] === undefined) d.apiVision[vk] = dv[vk]; } if (d.apiVision.batchSize && !d.apiVision.concurrency) { d.apiVision.concurrency = Math.min(d.apiVision.batchSize, 5); } delete d.apiVision.batchSize; }
+        else { var dv = def().apiVision; for (var vk in dv) { if (d.apiVision[vk] === undefined) d.apiVision[vk] = dv[vk]; } if (d.apiVision.batchSize && !d.apiVision.concurrency) { d.apiVision.concurrency = Math.min(d.apiVision.batchSize, 5); } delete d.apiVision.batchSize;
+        if (d.useMainApi !== false) { d.useMainApi = true; autoDetectApiConfig(d); } }
         // v17→v18迁移：把带owner的穿搭移入chars
         migrateV17(d);
         return d;
@@ -130,20 +131,19 @@
 （以上为当前穿搭和可用单品库存，禁止编造以上之外的服装。）',
             debug: false,
             // API
-            apiVision: { endpoint: '', key: '', model: '', concurrency: 1, prompt: '请用中文详细描述这张穿搭图片中的服装。包括：服装类型、颜色、材质、款式细节、搭配方式等。只描述服装本身，不描述人物外貌。每套穿搭的描述控制在100-200字。', overwrite: false, parsePrompt: '请逐件列出图中可见单品。格式：类别：描述。类别包括上装/下装/外套/鞋袜/配饰/包包。只列图中实际可见的。每件一行15-30字。', autoTagPrompt: '分析这张穿搭照片，用以下格式回复（简洁，不要解释）：\n名称：<5-15字>\n类型：套装 或 单品\n风格：选一个（学院/简约/运动/甜美/通勤/休闲/街头/优雅/舒适）\n季节：选一个（春/夏/秋/冬/全年）\n场景：选一个（外出/家居/办公/约会/运动/睡前）\n---\n<描述100-200字>' }
+            useMainApi: true, apiVision: { endpoint: '', key: '', model: '', concurrency: 1, prompt: '请用中文详细描述这张穿搭图片中的服装。包括：服装类型、颜色、材质、款式细节、搭配方式等。只描述服装本身，不描述人物外貌。每套穿搭的描述控制在100-200字。', overwrite: false, parsePrompt: '请逐件列出图中可见单品。格式：类别：描述。类别包括上装/下装/外套/鞋袜/配饰/包包。只列图中实际可见的。每件一行15-30字。', autoTagPrompt: '分析这张穿搭照片，用以下格式回复（简洁，不要解释）：\n名称：<5-15字>\n类型：套装 或 单品\n风格：选一个（学院/简约/运动/甜美/通勤/休闲/街头/优雅/舒适）\n季节：选一个（春/夏/秋/冬/全年）\n场景：选一个（外出/家居/办公/约会/运动/睡前）\n---\n<描述100-200字>' }
         };
     }
 
     function autoDetectApiConfig(d) {
-        if (d.apiVision.endpoint && d.apiVision.key) return;
         try {
             if (typeof SillyTavern !== 'undefined' && SillyTavern.getContext) {
                 var ctx = SillyTavern.getContext();
                 if (ctx.chatCompletionSettings) {
                     var cs = ctx.chatCompletionSettings;
-                    if (!d.apiVision.endpoint && cs.api_url) d.apiVision.endpoint = cs.api_url;
-                    if (!d.apiVision.key && cs.api_key) d.apiVision.key = cs.api_key;
-                    if (!d.apiVision.model && cs.model) d.apiVision.model = cs.model;
+                    if (cs.api_url) d.apiVision.endpoint = cs.api_url;
+                    if (cs.api_key) d.apiVision.key = cs.api_key;
+                    if (cs.model) d.apiVision.model = cs.model;
                 }
             }
         } catch (e) {}
@@ -1233,10 +1233,11 @@
                 if (batchSelected.length === 0) { toast('请先选择穿搭', true); return; }
                 var modal = document.createElement('div'); modal.className = 'om-modal';
                 var bg = darkMode ? '#1e1e24' : '#ececef'; var fg = darkMode ? '#eee' : '#111';
-                modal.innerHTML = '<div class="om-modal-box" style="max-width:600px;background:' + bg + ';color:' + fg + '"><div class="om-modal-title"><i class="fa-solid fa-paste"></i> 批量粘贴描述</div><div style="font-size:.78em;opacity:.6;margin-bottom:8px">将 AI 返回的所有描述一起粘贴到下方，按 <code>--- 第N套 ---</code> 自动分割分配给已选 ' + batchSelected.length + ' 套穿搭</div><textarea id="om-paste-area" rows="14" style="width:100%;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:10px;font-size:.85em;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea><div id="om-paste-result" style="margin-top:8px;font-size:.8em"></div><div class="om-btn-row" style="margin-top:10px"><button class="om-btn om-btn-safe" id="om-paste-go">分配并保存</button><button class="om-btn om-btn-outline" id="om-paste-cancel">取消</button></div></div>';
+                modal.innerHTML = '<div class="om-modal-box" style="max-width:600px;background:' + bg + ';color:' + fg + '"><div class="om-modal-title"><i class="fa-solid fa-paste"></i> 批量粘贴描述</div><div style="font-size:.78em;opacity:.6;margin-bottom:8px">将 AI 返回的所有描述一起粘贴到下方，按 <code>--- 第N套 ---</code> 自动分割分配给已选 ' + batchSelected.length + ' 套穿搭</div><textarea id="om-paste-area" rows="14" style="width:100%;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:10px;font-size:.85em;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea><div id="om-paste-result" style="margin-top:8px;font-size:.8em"></div><div class="om-btn-row" style="margin-top:10px"><button class="om-btn om-btn-safe" id="om-paste-go">分配并保存</button><button class="om-btn om-btn-outline" id="om-paste-copyprompt" style="font-size:.75em;padding:3px 8px;margin-right:4px"><i class="fa-solid fa-copy"></i> 复制提示词</button><button class="om-btn om-btn-outline" id="om-paste-cancel">取消</button></div></div>';
                 var mp = getPopupLayer(); modal.style.cssText = 'position:absolute !important;inset:0 !important;z-index:1 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
                 mp.appendChild(modal); modal.addEventListener('click', function (e) { if (e.target === modal) mp.removeChild(modal); });
                 modal.querySelector('#om-paste-cancel').addEventListener('click', function () { mp.removeChild(modal); });
+                modal.querySelector('#om-paste-copyprompt').addEventListener('click', function (e) { e.stopPropagation(); var prompt = '请逐一分析以下穿搭照片，对每张照片严格按以下格式返回（不要额外解释，直接输出）：\n\n--- 第1套 ---\n名称：<5-15字简短名称>\n分类：<睡衣/制服/常服/外出服>\n风格：<学院/简约/运动/甜美/通勤/休闲/街头/优雅/舒适>\n季节：<春/夏/秋/冬/全年>\n场景：<外出/家居/办公/约会/运动/睡前>\n描述：<100-200字服装描述>\n\n--- 第2套 ---\n...'; navigator.clipboard.writeText(prompt).then(function() { toast('提示词已复制！粘贴到外部AI对话框即可'); }).catch(function() { toast('复制失败，请手动复制', true); }); });
                 modal.querySelector('#om-paste-go').addEventListener('click', function () {
                     var text = modal.querySelector('#om-paste-area').value.trim();
                     if (!text) { toast('请先粘贴内容', true); return; }
@@ -2070,12 +2071,15 @@
 
             '<div class="om-divider"></div>',
             '<div class="om-sec-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:4px"></i>描述生成 API <span class="om-hint">（用于批量生成穿搭文字描述，需要 Vision 模型）</span></div>',
+            '<div class="om-setting-row om-row-inline"><label>使用酒馆主 API（推荐）</label><input type="checkbox" class="om-chk" id="om-use-main-api"' + (d.useMainApi !== false ? ' checked' : '') + ' /></div>',
+            '<div id="om-custom-api-fields" style="display:' + (d.useMainApi !== false ? 'none' : 'block') + '">',
             '<div class="om-setting-row"><label>API 地址</label><input type="text" id="om-api-v-endpoint" placeholder="https://api.openai.com 或中转站地址" value="' + esc(d.apiVision.endpoint) + '" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100%;box-sizing:border-box;font-family:inherit" /></div>',
             '<div class="om-setting-row"><label>API Key</label><input type="password" id="om-api-v-key" placeholder="sk-..." value="' + esc(d.apiVision.key) + '" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100%;box-sizing:border-box;font-family:inherit" /></div>',
             '<div class="om-setting-row"><label>模型名称</label><div style="display:flex;gap:6px;align-items:center"><input type="text" id="om-api-v-model" placeholder="gpt-4o / gemini-2.0-flash / claude-sonnet-4-20250514" value="' + esc(d.apiVision.model) + '" style="flex:1;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;box-sizing:border-box;font-family:inherit" /><button class="om-btn om-btn-outline" id="om-api-v-model-fetch" style="font-size:.75em;white-space:nowrap;padding:7px 10px;flex-shrink:0"><i class="fa-solid fa-rotate"></i> 拉取</button></div></div>',
             '<div class="om-setting-row"><label>并发数 <span class="om-hint">同时发送的请求数，越大越快但可能触发限速（1-5）</span></label><input type="number" id="om-api-v-batch" min="1" max="5" value="' + (d.apiVision.concurrency || 3) + '" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:80px;box-sizing:border-box;font-family:inherit" /></div>',
             '<div class="om-setting-row"><label>描述生成 Prompt</label><textarea id="om-api-v-prompt" rows="3" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100%;box-sizing:border-box;resize:vertical;font-family:inherit">' + esc(d.apiVision.prompt) + '</textarea></div>',
             '<div class="om-setting-row om-row-inline"><label>覆盖已有描述</label><input type="checkbox" class="om-chk" id="om-api-v-overwrite"' + (d.apiVision.overwrite ? ' checked' : '') + ' /></div>',
+            '</div>',
             '<div class="om-btn-row" style="margin-top:6px"><button class="om-btn om-btn-outline" id="om-api-v-test" style="font-size:.8em"><i class="fa-solid fa-flask-vial"></i> 测试连接</button></div>',
 
             '<div class="om-divider"></div>',
@@ -2116,6 +2120,7 @@
         sheet.querySelector('#om-api-v-batch').addEventListener('change', function () { var dd = load(); dd.apiVision.concurrency = Math.max(1, Math.min(5, parseInt(this.value) || 3)); save(dd); });
         sheet.querySelector('#om-api-v-prompt').addEventListener('input', function () { var dd = load(); dd.apiVision.prompt = this.value; save(dd); });
         sheet.querySelector('#om-api-v-overwrite').addEventListener('change', function () { var dd = load(); dd.apiVision.overwrite = this.checked; save(dd); });
+        sheet.querySelector('#om-use-main-api').addEventListener('change', function () { var dd = load(); dd.useMainApi = this.checked; if (this.checked) { autoDetectApiConfig(dd); } save(dd); var fields = sheet.querySelector('#om-custom-api-fields'); if (fields) fields.style.display = this.checked ? 'none' : 'block'; });
         sheet.querySelector('#om-api-v-test').addEventListener('click', function () {
             var dd = load();
             if (!dd.apiVision.endpoint || !dd.apiVision.key || !dd.apiVision.model) { toast('请先填写 API 地址、Key 和模型名称', true); return; }
@@ -3088,6 +3093,7 @@
             }
         }
         dataCache = d;
+        if (d.useMainApi !== false) autoDetectApiConfig(d);
         var lsData = loadFromLS();
         if (lsData && lsData.outfits && lsData.outfits.length > 0 && (!d.outfits || d.outfits.length === 0)) {
             dataCache = ensureDefaults(lsData);
