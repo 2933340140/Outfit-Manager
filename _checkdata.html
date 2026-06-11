@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html><body><script>
+var r = indexedDB.open('outfit_mgr_db');
+r.onsuccess = function(e) {
+    try {
+        var tx = e.target.result.transaction('data', 'readonly');
+        var req = tx.objectStore('data').get('main');
+        req.onsuccess = function() {
+            var d = req.result;
+            document.body.innerHTML = '<h2>Result:</h2>' +
+                '<p>Data: ' + (!!d) + '</p>' +
+                '<p>Outfits: ' + (d&&d.outfits?d.outfits.length:0) + '</p>' +
+                '<p>Categories: ' + JSON.stringify(d&&d.categories||[]) + '</p>' +
+                '<p>First names:</p><ul>' + 
+                ((d&&d.outfits||[]).slice(0,3).map(function(o){return'<li>'+o.name+'</li>';}).join('')) +
+                '</ul>';
+        };
+    } catch(ex) { document.body.innerHTML = 'Error: '+ex.message; }
+};
+r.onerror = function() { document.body.innerHTML = 'DB not found'; };
+</script></body></html>

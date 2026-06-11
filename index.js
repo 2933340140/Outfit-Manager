@@ -156,6 +156,7 @@
         if (!Array.isArray(d.presets)) d.presets = [];
         if (!d.chars) d.chars = {};
         if (!d.virtualOutfits) d.virtualOutfits = {};
+        if (!d.selectedWorldBookNames || !Array.isArray(d.selectedWorldBookNames)) d.selectedWorldBookNames = [];
         if (!d.charNames) d.charNames = [];
         if (!d.apiVision) d.apiVision = def().apiVision;
         else { var dv = def().apiVision; for (var vk in dv) { if (d.apiVision[vk] === undefined) d.apiVision[vk] = dv[vk]; } if (d.apiVision.batchSize && !d.apiVision.concurrency) { d.apiVision.concurrency = Math.min(d.apiVision.batchSize, 5); } delete d.apiVision.batchSize;
@@ -181,6 +182,7 @@
             charGroups: {},      // 分组（预留）：{ '组名': ['角色名1','角色名2'] }
             // 界面状态
             currentView: 'user',
+            selectedWorldBookNames: [],
             currentChar: '',
             showBall: true,
             // 注入配置
@@ -581,7 +583,7 @@
             '.om-empty i{font-size:2.6em;}',
 
             /* ══ 底栏 ══ */
-            '.om-quick-scenes{display:flex;gap:4px;flex-wrap:wrap;margin-left:8px;}.om-quick-scene-btn{font-size:.7em;padding:3px 8px;border-radius:12px;border:1px solid rgba(127,127,127,.25);background:rgba(127,127,127,.06);color:inherit;cursor:pointer;white-space:nowrap;transition:all .15s;}.om-quick-scene-btn:hover{background:var(--SmartThemeQuoteColor,#7c6daf);color:#fff;border-color:var(--SmartThemeQuoteColor,#7c6daf);}.om-bottombar{display:flex !important;align-items:center;gap:6px;padding:10px 14px;flex-shrink:0;',
+            '.om-quick-scenes{display:flex;align-items:center;gap:8px;padding:8px 15px;border-bottom:1px solid rgba(127,127,127,.08);flex-shrink:0;overflow-x:auto;scrollbar-width:none;background:linear-gradient(90deg,rgba(127,127,127,.08),rgba(127,127,127,.02));}.om-quick-scenes::-webkit-scrollbar{display:none;}.om-quick-title{font-size:.76em;opacity:.65;white-space:nowrap;flex:0 0 auto;}.om-quick-panel{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;}.om-quick-scene-btn{font-size:.76em;padding:5px 12px;border-radius:999px;border:1px solid rgba(127,127,127,.25);background:rgba(127,127,127,.08);color:inherit;cursor:pointer;white-space:nowrap;transition:all .15s;flex:0 0 auto;}.om-quick-scene-btn:hover{background:var(--SmartThemeQuoteColor,#7c6daf);color:#fff;border-color:var(--SmartThemeQuoteColor,#7c6daf);transform:translateY(-1px);}.om-bottombar{display:flex !important;align-items:center;gap:6px;padding:10px 14px;flex-shrink:0;',
             'border-top:1px solid rgba(127,127,127,.1);background:rgba(0,0,0,.12);}',
             '.om-bottom-status{flex:1;min-width:0;display:flex;align-items:center;gap:7px;',
             'cursor:pointer;border-radius:8px;padding:5px 7px;transition:.15s;',
@@ -772,10 +774,242 @@
     var curCat = '__all__';
     var wbMode = false;
     
-    function getWorldBookStyles() { var all = []; if (typeof worldBookStylesModern !== 'undefined') all = all.concat(worldBookStylesModern); if (typeof worldBookStylesLingerie !== 'undefined') all = all.concat(worldBookStylesLingerie); return all; }
-    var worldBookStylesModern = [{"name":"纯欲风","style":"纯欲","season":"春夏","scene":"约会","desc":"纯欲风穿搭：清纯中带性感，甜美不失轻盈。浅色系为主（白、粉、薄荷、奶油黄、香槟），蕾丝、荷叶边、短裙、露肩/露腰设计。\n示例搭配：白色蕾丝泡泡袖短上衣，荷叶边领口微敞，搭配粉色高腰百褶短裙。配饰选珍珠发夹半扎发、细带玛丽珍鞋，手腕系一条浅粉丝带。整体清新甜美，露锁骨与小腿，若隐若现的纯欲感。"},{"name":"甜酷风","style":"甜酷","season":"春夏","scene":"外出","desc":"甜酷风穿搭：甜辣元气，又甜又酷，个性俏皮。黑粉撞色、红白、黑紫为主。露肩/露腰短上衣、蛋糕层叠短裙、阔腿牛仔长裤、金属链条、玩偶包包、厚底松糕鞋。\n示例搭配：黑色露腰短T恤（胸前印花爪印图案），搭配粉紫格纹百褶短裙。配饰银色金属腿环+黑色choker+黑白条纹堆堆袜+厚底马丁靴。单手拎一只毛绒玩偶斜挎包，又凶又可爱。"},{"name":"休闲风","style":"休闲","season":"全年","scene":"外出","desc":"休闲日常风：舒适、简约、随性，不刻意打扮但仍干净有质感。白、灰、米色、燕麦色、浅蓝、牛仔蓝为主。T恤、卫衣、牛仔裤、阔腿裤、运动鞋、帆布包。\n示例搭配：米白色宽松卫衣（微落肩），内搭白T领口露出，下穿浅蓝直筒破洞牛仔裤，挽起两折裤脚。白色帆布鞋+帆布托特包+棒球帽，耳机线从领口垂落。慵懒又干净的日常。"},{"name":"千禧Y2K","style":"千禧","season":"春夏","scene":"外出","desc":"千禧Y2K风：复古千禧辣妹甜心，随性叛逆甜酷张扬。高饱和粉、明黄、草绿、树莓粉、黑灰、复古做旧牛仔色。印花工字吊带、低腰牛仔短裙/热裤、豹纹毛绒、十字架银饰、绑带、格纹贝雷帽、厚底坡跟鞋。\n示例搭配：玫红色印花工字背心吊带（紧身短款），搭配低腰浅蓝做旧牛仔迷你裙，外披豹纹毛绒短外套。银色多层十字架项链+黑色宽腰封绑带+厚底松糕凉鞋。头发挑染粉色，美式复古辣妹。"},{"name":"日系软甜","style":"甜美","season":"春夏","scene":"约会","desc":"日系软甜风：温柔可爱清纯，像棉花糖一样软乎乎的少女感。粉白奶油色系为主，棉麻雪纺柔软材质，蓬蓬裙、娃娃领、荷叶边、蝴蝶结、蕾丝短袜。\n示例搭配：奶油白圆领灯笼袖衬衫（领口系一条细丝带蝴蝶结），搭配樱花粉高腰A字百褶短裙。白色蕾丝花边短袜+圆头玛丽珍粗跟鞋，手腕系粉色串珠手链。头发半扎成丸子头，留几缕碎发在耳边。"},{"name":"日系复古","style":"复古","season":"秋冬","scene":"外出","desc":"日系复古风：文艺怀旧、书卷气。深棕墨绿酒红驼色为主，格纹毛衣、灯芯绒长裙、毛呢贝雷帽、皮革剑桥包。\n示例搭配：驼色绞花高领毛衣（宽松落肩），内搭白色衬衫领子翻出，搭配深墨绿色格纹百褶长裙及小腿。棕色皮革细腰带收腰+棕色乐福鞋+同色皮革斜挎包+深棕贝雷帽。怀里抱一本旧书，像从图书馆走出来的文学少女。"},{"name":"办公室海妖","style":"通勤","season":"全年","scene":"办公","desc":"办公室海妖风：知性职场穿搭，优雅不失气场。黑白灰藏青为主，西装、真丝飘带衬衫、包臀裙、阔腿西裤、尖头细高跟。\n示例搭配：藏青色收腰一粒扣西装外套（垫肩利落），内搭白色真丝飘带领衬衫（飘带自然垂落），搭配黑色九分烟管西裤露出脚踝。黑色尖头细高跟+银色简约腕表+黑色皮革手提公文包。妆容精致淡雅，气场全开的职场女性。"},{"name":"通勤休闲","style":"通勤","season":"全年","scene":"办公","desc":"通勤休闲风：日常通勤简约舒适，不过分正式也不邋遢。针织开衫、直筒裤、乐福鞋为主，燕麦灰米白柔和色系。\n示例搭配：浅灰色针织V领开衫（轻薄款扣两粒扣子），内搭白色圆领T恤，下穿米色直筒西装裤九分长度+棕色乐福鞋。帆布托特包加一杯外带咖啡，轻松又不失体面的工作日穿搭。"},{"name":"洛丽塔","style":"甜美","season":"全年","scene":"约会","desc":"洛丽塔风：甜系Lolita，蓬蓬裙、蝴蝶结、蕾丝、荷叶边、珍珠元素。OP/JSK连衣裙+南瓜裤+KC发带/蝴蝶结头饰+圆头粗跟鞋+白色蕾丝花边袜。\n示例搭配：粉色草莓印花JSK高腰连衣裙（胸口蝴蝶结+多层蕾丝裙摆），内搭白色荷叶领衬衫+白色南瓜裤（裙撑蓬起）。搭配同色系KC蝴蝶结发带+白色圆头粗跟玛丽珍+白色蕾丝花边中筒袜。手提草莓造型小包，手腕系粉色丝带。"},{"name":"学院风","style":"学院","season":"全年","scene":"外出","desc":"学院风：元气校园感，preppy风格。百褶裙、针织背心、衬衫、V领毛衣、格纹元素，藏青酒红格纹为主。\n示例搭配：白色尖领衬衫外搭藏青色V领针织背心（领口露出衬衫领），搭配红黑格纹百褶短裙。黑色过膝长袜+黑色乐福鞋+深棕色皮革双肩包。头发扎成高马尾用格纹发圈，整个人元气满满。"},{"name":"韩系日常","style":"简约","season":"全年","scene":"外出","desc":"韩系日常风：简约休闲干净利落，基础款搭配出高级感。黑白灰米色系，西装外套、直筒牛仔裤、板鞋、帆布托特包。\n示例搭配：米白色短款针织开衫（刚好及腰），内搭黑色高领打底，下穿黑色高腰直筒西裤。白色厚底板鞋+黑色帆布托特包，手腕叠戴银色细手链。头发随意低马尾，干净清爽的韩系小姐姐。"},{"name":"韩系女团","style":"街头","season":"春夏","scene":"外出","desc":"韩系女团风：kpop爱豆打歌服既视感，舞台mix日常。短上衣、高腰工装裤/百褶裙、亮片、金属链条、厚底靴。\n示例搭配：黑色亮片短吊带（紧身露腰），搭配白色高腰束脚工装裤（腰间银色链条腰带垂落）。黑色厚底马丁靴+多层银链项链+银色大耳环。头发高马尾加挑染，眼妆闪亮，随时可以上台打歌。"},{"name":"现代哥特","style":"街头","season":"秋冬","scene":"外出","desc":"现代哥特风：暗黑甜酷。全黑或黑紫黑红为主，铆钉、蕾丝、皮革、鱼网袜、十字架、choker。\n示例搭配：黑色蕾丝拼接短上衣（半透蕾丝拼接+绑带鱼骨束腰设计），搭配黑色纱裙（多层不规则裙摆）。黑色过膝渔网袜+厚底铆钉短靴+多层十字架银链choker+黑色皮革腕带。黑色微卷长发披散，烟熏妆暗黑但不失甜美。"},{"name":"旗袍","style":"优雅","season":"春夏","scene":"约会","desc":"旗袍风：民国复古韵味。修身旗袍、开叉设计、真丝提花、盘扣立领、滚边工艺。\n示例搭配：墨绿色暗纹提花短款旗袍（及膝长度），侧边低开叉+盘扣立领+黑色丝绒滚边。珍珠耳坠+黑色细跟尖头鞋+墨绿色缎面手拿包。头发盘成低发髻插一根玉簪，优雅古典的东方美人。"},{"name":"新中式","style":"优雅","season":"全年","scene":"外出","desc":"新中式风：国风改良，传统元素与现代剪裁融合。盘扣、立领、刺绣、交领、阔腿裤。\n示例搭配：黑色改良旗袍领短上衣（立领盘扣+微微泡泡袖），搭配白色高腰阔腿裤。腰间一条黑色刺绣宽腰封收腰，黑色尖头猫跟鞋。银色流苏耳坠+黑色缎面链条包。现代与古典的碰撞，时髦又有韵味。"},{"name":"御姐辣妹","style":"街头","season":"春夏","scene":"约会","desc":"御姐辣妹风：成熟性感气场全开。紧身短裙、深V露背、高跟鞋、金属配饰，黑红为主。\n示例搭配：黑色深V交叉绑带短上衣（露背设计），搭配红色包臀皮裙（侧边小开衩）。黑色尖头细高跟（12cm）+金色大耳环+多层金属手镯+黑色链条包。长发微卷披肩，红唇妆容，走路带风。"},{"name":"财阀千金","style":"优雅","season":"全年","scene":"约会","desc":"财阀千金风：高级优雅名媛感。粗花呢套装、珍珠配饰、小香风元素、链条包、尖头高跟鞋。\n示例搭配：奶白色粗花呢短外套（圆领无领设计+珍珠纽扣），内搭白色真丝吊带，下穿同色粗花呢A字短裙。珍珠项链+珍珠耳钉+白色菱格纹链条包+米色尖头细高跟。手腕戴银色细链表，头发微卷披肩，优雅贵气。"},{"name":"小香风","style":"优雅","season":"秋冬","scene":"外出","desc":"小香风：温柔富家千金感。粗花呢外套、珍珠钻石配饰、丝质衬衫、阔腿裤，粉白米金柔和色系。\n示例搭配：淡粉色粗花呢圆领短外套（编织金线+珍珠纽扣），内搭白色丝质飘带衬衫，搭配米色阔腿西裤。珍珠耳钉+珍珠短项链+裸色尖头高跟鞋+米色链条包。整体色调温柔高级，名媛下午茶穿搭。"},{"name":"欧美风","style":"街头","season":"全年","scene":"外出","desc":"欧美风：简约大气廓形剪裁，effortless chic。白T/背心、直筒/阔腿牛仔裤、oversized西装外套、运动鞋，卡其黑白灰为主。\n示例搭配：白色纯棉圆领短T（微宽松塞进裤腰），搭配浅蓝色直筒破洞牛仔裤+黑色皮带。外披卡其色oversized西装外套，白色厚底运动鞋+黑色墨镜。金色hoop耳环+黑色腋下包，简约不简单的街拍感。"},{"name":"轻亚风","style":"街头","season":"全年","scene":"外出","desc":"轻亚风：亚文化轻量版，暗黑但不夸张，日常可穿。暗色系为主，银饰、十字架、链条、choker、网纱、撕裂元素+日常单品混搭。\n示例搭配：黑色不规则撕裂感短T恤，搭配灰色束脚工装阔腿裤。多层银链短项链+黑色皮革choker+银色十字架耳坠+黑色马丁靴。手腕叠戴铆钉皮革手环，暗黑但不中二，日常出街刚好。"}];;
-    var worldBookStylesLingerie = [{"name":"基础纯棉","style":"舒适","season":"全年","scene":"家居","desc":"基础纯棉内衣：日常舒适亲肤透气，纯棉材质为主。白色/浅灰/肤色纯棉三角杯文胸（无钢圈、薄棉垫可拆卸、肩带固定长度），搭配同色纯棉中腰三角裤（弹力螺纹腰头、无印花无蕾丝）。柔软贴合身体曲线，适合居家、睡眠、日常休闲穿着。简约实穿不做作。"},{"name":"蕾丝花边","style":"甜美","season":"全年","scene":"睡前","desc":"蕾丝花边内衣：清新甜美。浅粉/奶白/淡紫色蕾丝薄款三角杯文胸（无钢圈、花卉纹样蕾丝、细肩带），搭配同色蕾丝低腰三角裤（蕾丝花边腰头+轻薄内衬）。蕾丝若隐若现的清透感，少女气息满满，适合约会前的小心机或睡前仪式感。"},{"name":"丝绸缎面","style":"优雅","season":"春夏","scene":"睡前","desc":"丝绸缎面内衣：光泽柔滑奢华质感。香槟金/酒红/墨绿色真丝吊带式文胸（细吊带V领设计+缎面光泽），搭配同色真丝低腰三角裤（柔滑缎面+细带侧腰）。贴肤丝滑冰凉，慵懒性感，适合夏日夜晚或特殊场合，自带高级感体香。"},{"name":"运动款","style":"运动","season":"全年","scene":"运动","desc":"运动内衣：工字背/宽肩带设计，透气速干弹力面料。黑色/深灰/藏青色运动背心式文胸（中高强度支撑+可拆卸胸垫+透气网眼拼接），搭配同色无缝平角运动内裤（四面弹力+吸湿排汗）。运动时不晃动不摩擦，瑜伽跑步健身都合适。"},{"name":"法式三角","style":"优雅","season":"全年","scene":"约会","desc":"法式三角杯内衣：简约精致不刻意。黑色/肤色/酒红色细带三角杯文胸（无钢圈轻薄款+可调节细肩带+后背交叉设计），搭配同色细带低腰三角裤（极简剪裁+细带侧腰）。法式慵懒性感，不追求聚拢，原生态的美感，适合约会或需要无痕内搭时穿着。"}];;
-    
+    var worldBookStyleCache = {};
+    var worldBookStylesLoaded = false;
+    var worldBookClothingPattern = /(?:名称|风格|季节|场景|描述|核心风格|生成规则)\s*[：:]/;
+    var worldBookClothingPartPattern = /^\s*(?:[-*]\s*)?(上衣|内搭|下装|裙装|外搭|外套|连衣裙|旗袍|礼服|服装|配饰|鞋袜|鞋子|袜子|假发|角色|文胸|内裤|配件|文胸与内裤一体|内裤部分)\s*[：:]/m;
+    function getWorldBookStyles(names) {
+        var all = [];
+        var keys = Array.isArray(names) && names.length ? names : Object.keys(worldBookStyleCache);
+        keys.forEach(function (k) { if (worldBookStyleCache[k]) all = all.concat(worldBookStyleCache[k]); });
+        return all;
+    }
+    function getActiveWorldBookNames(ctx, d) {
+        var names = [];
+        function add(name) { if (name && names.indexOf(name) === -1) names.push(name); }
+        try {
+            if (ctx && ctx.chatMetadata && ctx.chatMetadata.world_info) {
+                if (Array.isArray(ctx.chatMetadata.world_info)) ctx.chatMetadata.world_info.forEach(add);
+                else add(ctx.chatMetadata.world_info);
+            }
+            if (typeof document !== 'undefined') {
+                var allNames = ctx && ctx.getWorldInfoNames ? ctx.getWorldInfoNames() : [];
+                document.querySelectorAll('#world_info option:checked').forEach(function (opt) {
+                    var idx = parseInt(opt.value, 10);
+                    add(allNames[idx] || opt.textContent || opt.value);
+                });
+            }
+            if (names.length === 0 && d && Array.isArray(d.selectedWorldBookNames)) d.selectedWorldBookNames.forEach(add);
+        } catch (e) {}
+        return names;
+    }
+    function getKnownWorldBookNames(ctx) {
+        try { return ctx && ctx.getWorldInfoNames ? ctx.getWorldInfoNames().filter(Boolean) : []; }
+        catch (e) { return []; }
+    }
+    function getDefaultSelectedWorldBookNames(ctx, d) {
+        var allNames = getKnownWorldBookNames(ctx);
+        var uuNames = allNames.filter(function (name) { return /uu/i.test(name); });
+        if (uuNames.length > 0) return uuNames;
+        var activeNames = getActiveWorldBookNames(ctx, d);
+        var activeUU = activeNames.filter(function (name) { return /uu/i.test(name); });
+        return activeUU.length > 0 ? activeUU : activeNames;
+    }
+    function getSelectedWorldBookNames(ctx, d) {
+        var selected = d && Array.isArray(d.selectedWorldBookNames) ? d.selectedWorldBookNames.filter(Boolean) : [];
+        var selectedUU = selected.filter(function (name) { return /uu/i.test(name); });
+        if (selectedUU.length > 0) return selectedUU;
+        return getDefaultSelectedWorldBookNames(ctx, d);
+    }
+    function createWorldBookOutfit(ws, idPrefix, idx) {
+        var mw = materializeWorldBookStyle(ws);
+        return { id: (idPrefix || 'wb_dyn') + '_' + idx, name: mw.name, category: '世界书', type: 'outfit', style: '', season: '', sceneTag: '', description: mw.desc, imageData: null, isVirtual: true, source: mw.source || ws.source || '' };
+    }
+    function getWorldBookStyleSceneKeys(ws) {
+        var name = String((ws && (ws.name || ws.style)) || '').replace(/[💫🚫]/g, '').trim();
+        var map = {
+            '纯欲风': ['外出', '约会'],
+            '日系保暖': ['外出'],
+            '通勤休闲风': ['外出', '办公'],
+            '洛丽塔': ['外出'],
+            '学院风': ['外出'],
+            '韩系日常风': ['外出', '办公', '约会'],
+            '韩系女团风': ['外出', '约会'],
+            '现代哥特风': ['外出', '约会'],
+            '旗袍': ['外出', '约会'],
+            '新中式': ['外出', '约会'],
+            '御姐辣妹风': ['外出', '约会'],
+            '财阀千金风': ['外出', '约会'],
+            '小香风': ['外出', '约会'],
+            '轻熟职场风': ['外出', '办公', '约会'],
+            '多巴胺风': ['外出', '约会'],
+            '欧美风': ['外出', '约会'],
+            'bm风': ['外出'],
+            '轻亚风': ['外出'],
+            '基础纯棉': ['家居', '睡前'],
+            '蕾丝性感': ['约会'],
+            '法式三角杯': ['约会', '家居'],
+            '聚拢调整': ['外出', '约会'],
+            '少女可爱': ['家居', '睡前'],
+            '丝绸奢华': ['约会', '睡前'],
+            '抹胸式': ['外出']
+        };
+        return map[name] || null;
+    }
+    function worldBookStyleMatchesScene(ws, scene) {
+        if (!scene) return true;
+        var mappedScenes = getWorldBookStyleSceneKeys(ws);
+        var text = [ws.name, ws.style, ws.scene, ws.desc, ws.raw, ws.source].join('\n');
+        var titleText = [ws.name, ws.style].join('\n');
+        var sceneKey = /通勤|上班|办公|职场/.test(scene) ? '办公' : scene;
+        if (mappedScenes) return mappedScenes.indexOf(sceneKey) !== -1;
+        if (sceneKey === '外出') return !/内衣|睡衣|睡前|家居|基础纯棉|洛丽塔|Lolita|Cos装|高定礼服|办公室/.test(text);
+        if (sceneKey === '办公') return /通勤|职场|办公|上班|韩系日常/.test(text) && !/非(?:日常)?通勤|非.*办公|非.*职场/.test(text) && !/洛丽塔|Lolita|Cos装|高定礼服|旗袍|新中式|财阀|御姐|辣妹|女团|哥特|多巴胺|欧美|bm风|轻亚|纯欲|学院/.test(titleText);
+        if (sceneKey === '约会' && /非.*约会|仅适用于.*(?:办公|职场|运动|睡前|家居)/.test(text)) return false;
+        if (sceneKey === '家居' && /非.*家居|仅适用于.*(?:办公|职场|晚宴|漫展|茶会)/.test(text)) return false;
+        if (sceneKey === '运动' && /非.*运动|仅适用于.*(?:办公|职场|晚宴|漫展|茶会)/.test(text)) return false;
+        if (sceneKey === '睡前' && /非.*睡前|仅适用于.*(?:办公|职场|晚宴|漫展|茶会)/.test(text)) return false;
+        var map = {
+            '约会': /约会|纯欲|财阀|千金|韩系|女团|御姐|辣妹|旗袍|新中式|小香|欧美|轻熟|多巴胺|优雅|名媛/,
+            '办公': /办公|职场|通勤|上班|轻熟|韩系日常|休闲/,
+            '家居': /家居|睡衣|休闲|基础纯棉|内衣/,
+            '运动': /运动/,
+            '睡前': /睡衣|睡前|内衣|基础纯棉/
+        };
+        return map[sceneKey] ? map[sceneKey].test(text) : false;
+    }
+    function refreshWorldBookStyles(names, cb) {
+        if (typeof names === 'function') { cb = names; names = null; }
+        try {
+            var ctx = typeof SillyTavern !== 'undefined' && SillyTavern.getContext ? SillyTavern.getContext() : null;
+            names = Array.isArray(names) ? names : getActiveWorldBookNames(ctx, load());
+            names = names.filter(function (name, idx) { return name && names.indexOf(name) === idx; });
+            if (names.length === 0) { worldBookStylesLoaded = true; if (cb) cb(); return; }
+            var loaded = 0;
+            if (typeof toast !== 'undefined') toast('正在加载 ' + names.length + ' 个世界书...', false, 2000);
+            names.forEach(function (name) {
+                loadWorldBookByName(ctx, name).then(function (data) {
+                    worldBookStyleCache[name] = parseWorldBookStyles(data, name);
+                }).catch(function () {
+                    worldBookStyleCache[name] = worldBookStyleCache[name] || [];
+                }).finally(function () {
+                    loaded++;
+                    if (loaded >= names.length) {
+                        worldBookStylesLoaded = true;
+                        if (typeof toast !== 'undefined') toast('已加载 ' + getWorldBookStyles(names).length + ' 套世界书穿搭', false, 3000);
+                        if (cb) cb();
+                    }
+                });
+            });
+        } catch (e) { worldBookStylesLoaded = true; if (cb) cb(); }
+    }
+    function loadWorldBookByName(ctx, name) {
+        if (ctx && typeof ctx.loadWorldInfo === 'function') return Promise.resolve(ctx.loadWorldInfo(name));
+        return fetch('/api/worldinfo/get', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        }).then(function (r) { return r.json(); });
+    }
+    function parseWorldBookStyles(data, sourceName) {
+        var entries = [];
+        if (data && Array.isArray(data.entries)) entries = data.entries;
+        else if (data && data.entries && typeof data.entries === 'object') entries = Object.keys(data.entries).map(function (k) { return data.entries[k]; });
+        return entries.map(function (entry) {
+            if (!entry || entry.disable === true || entry.enabled === false) return null;
+            var comment = entry.comment || '';
+            var key = Array.isArray(entry.key) ? entry.key.join(' / ') : (entry.key || '');
+            var full = entry.content || comment || key || '';
+            if ((full + '\n' + comment + '\n' + key).length < 8) return null;
+            var haystack = full + '\n' + comment + '\n' + key;
+            if (isWorldBookMetaEntry(haystack)) return null;
+            if (!worldBookClothingPattern.test(haystack)) return null;
+            if (!worldBookClothingPartPattern.test(full)) return null;
+            return parseWorldBookEntry(full, comment, key, sourceName);
+        }).filter(Boolean);
+    }
+    function isWorldBookMetaEntry(text) {
+        var firstLine = (text || '').split('\n').filter(function (l) { return l.trim(); })[0] || '';
+        if (/更新必看|不要开|省tk|省token/i.test(text || '')) return true;
+        if (/🚫/.test(text || '')) return true;
+        if (/^<随机(?:穿搭|内衣|服饰|服装)/.test(firstLine)) return true;
+        if (/^随机(?:穿搭|内衣)/.test(firstLine)) return true;
+        return false;
+    }
+    function parseWorldBookEntry(full, comment, key, sourceName) {
+        var result = { name: comment || key || '未命名', style: '', season: '', scene: '世界书', desc: full, raw: full, source: sourceName };
+        function extract(label) {
+            var labels = ['名称', '分类', '风格', '季节', '场景', '描述'];
+            var stops = labels.filter(function (k) { return k !== label; }).map(function (k) { return '(?:^|\\n)\\s*(?:[-*]\\s*)?' + k + '\\s*[：:]'; }).join('|');
+            var m = full.match(new RegExp('(?:^|\\n)\\s*(?:[-*]\\s*)?' + label + '\\s*[：:]\\s*([\\s\\S]*?)(?=' + stops + '|$)', 'm'));
+            return m ? m[1].trim() : '';
+        }
+        result.name = extract('名称') || result.name;
+        result.style = extract('风格') || result.style;
+        result.season = extract('季节') || result.season;
+        result.scene = extract('场景') || result.scene;
+        result.desc = extract('描述') || result.desc;
+        if (!result.name) result.name = full.split('\n').filter(function (l) { return l.trim(); })[0] || '未命名';
+        if (!result.style) result.style = result.name;
+        return result;
+    }
+    function materializeWorldBookStyle(ws) {
+        var copy = {};
+        for (var k in ws) copy[k] = ws[k];
+        copy.desc = generateWorldBookConcreteOutfit(ws.raw || ws.desc || '', ws.name || ws.style || '世界书穿搭') || ws.desc || '';
+        return copy;
+    }
+    function generateWorldBookConcreteOutfit(text, styleName) {
+        var buckets = {};
+        String(text || '').split('\n').forEach(function (line) {
+            var m = line.match(/^\s*(?:[-*]\s*)?(上衣|内搭|下装|裙装|外搭|外套|连衣裙|旗袍|礼服|服装|配饰|鞋袜|鞋子|袜子|假发|角色|文胸|内裤|配件|文胸与内裤一体|内裤部分)\s*[：:]\s*(.+?)\s*$/);
+            if (!m) return;
+            var label = m[1], value = m[2].replace(/\s+/g, ' ').trim();
+            if (!value || /仅供|参考|禁止|不得|生成规则/.test(value)) return;
+            if (!buckets[label]) buckets[label] = [];
+            if (buckets[label].indexOf(value) === -1) buckets[label].push(value);
+        });
+        function pick(label) {
+            var arr = buckets[label] || [];
+            return arr.length ? arr[Math.floor(Math.random() * arr.length)] : '';
+        }
+        function pickAny(labels) {
+            for (var i = 0; i < labels.length; i++) {
+                var v = pick(labels[i]);
+                if (v) return { label: labels[i], value: v };
+            }
+            return null;
+        }
+        var lines = [];
+        var dress = pickAny(['裙装', '连衣裙', '旗袍', '礼服', '服装']);
+        var bra = pickAny(['文胸与内裤一体', '文胸']);
+        var panty = pickAny(['内裤', '内裤部分']);
+        if (bra || panty) {
+            if (bra) lines.push(bra.label + '：' + bra.value);
+            if (panty) lines.push(panty.label + '：' + panty.value);
+            var lingerieExtra = pickAny(['配件', '配饰', '鞋袜']);
+            if (lingerieExtra) lines.push(lingerieExtra.label + '：' + lingerieExtra.value);
+            return lines.length > 0 ? lines.join('\n') : '';
+        }
+        if (dress) lines.push(dress.label + '：' + dress.value);
+        else {
+            var top = pickAny(['上衣', '内搭']);
+            var bottom = pick('下装');
+            if (top) lines.push(top.label + '：' + top.value);
+            if (bottom) lines.push('下装：' + bottom);
+        }
+        var outer = pickAny(['外搭', '外套']);
+        var accessories = pick('配饰');
+        var shoes = pickAny(['鞋袜', '鞋子', '袜子']);
+        var wig = pick('假发');
+        var role = pick('角色');
+        if (outer) lines.push(outer.label + '：' + outer.value);
+        if (role) lines.push('角色：' + role);
+        if (wig) lines.push('假发：' + wig);
+        if (accessories) lines.push('配饰：' + accessories);
+        if (shoes) lines.push(shoes.label + '：' + shoes.value);
+        return lines.length > 0 ? lines.join('\n') : '';
+    }
     var curType = '__all__';
     var batchMode = false;
     var batchSelected = [];
@@ -799,7 +1033,7 @@
 
         var ov = document.createElement('div');
         ov.className = 'om-overlay ' + (darkMode ? 'om-dark' : 'om-light');
-        ov.setAttribute('style', 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;z-index:2147483647 !important;');
+        ov.setAttribute('style', 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;z-index:2147483646 !important;');
 
         ov.innerHTML =
             '<div class="om-box">' +
@@ -821,12 +1055,13 @@
             '<div class="om-viewbar" id="om-viewbar"></div>' +
             // 分类栏
             '<div class="om-catbar" id="om-catbar"></div>' +
+            // 场景快捷栏
+            '<div class="om-quick-scenes" id="om-quick-scenes"></div>' +
             // 网格区
             '<div class="om-grid-area" id="om-grid-area"></div>' +
             // 底栏
             '<div class="om-bottombar" id="om-bottombar" style="position:relative;">' +
             '<div class="om-bottom-status" id="om-bottom-status"></div>' +
-            '<div class="om-quick-scenes" id="om-quick-scenes"></div>' +
             '<button class="om-batch-toggle-btn" id="om-batch-toggle">多选</button>' +
             '<button class="om-bottom-btn" id="om-bottom-presets" title="预设"><i class="fa-solid fa-bookmark"></i></button>' +
             '<button class="om-bottom-btn" id="om-bottom-roll" title="随机搭配"><i class="fa-solid fa-dice"></i></button>' +
@@ -836,6 +1071,7 @@
             '<div id="om-popup-slot" style="position:absolute;inset:0;z-index:999;pointer-events:none;"></div>';
 
         document.body.appendChild(ov);
+        renderQuickScenes(load());
 
         // 绑定顶栏
         ov.querySelector('#om-x').addEventListener('click', closePopup);
@@ -884,11 +1120,14 @@
         renderCatbar();
         renderGrid();
         renderBottomStatus();
+        setTimeout(function () { renderQuickScenes(load()); }, 300);
+        setTimeout(function () { renderQuickScenes(load()); }, 1200);
         closeFab();
     }
 
     function closePopup() {
         var ov = document.querySelector('.om-overlay'); if (ov) ov.parentNode.removeChild(ov);
+        injectFab();
     }
 
 
@@ -1425,48 +1664,83 @@
 
     // ── 底栏状态 ─────────────────────────────────────────────
     function renderQuickScenes(d) {
-        var el = document.getElementById('om-quick-scenes'); if (!el) return;
-        var allOutfits = getViewOutfits(d);
-        if (allOutfits.length === 0) { el.innerHTML = ''; return; }
-        // Collect all unique scene tags
-        var sceneTags = [];
-        allOutfits.forEach(function(o) { if (o.sceneTag && o.sceneTag.trim() && sceneTags.indexOf(o.sceneTag.trim()) === -1) sceneTags.push(o.sceneTag.trim()); }); if (typeof wbMode !== 'undefined' && wbMode) { var wbOnlyChecked = document.getElementById('om-qs-wbonly') ? document.getElementById('om-qs-wbonly').checked : false; var outfits = wbOnlyChecked ? [] : getViewOutfits(d).filter(function(o) { return o.sceneTag && o.sceneTag.trim() === scene; }); getWorldBookStyles().forEach(function(ws) { if (ws.scene && ws.scene.trim() && sceneTags.indexOf(ws.scene.trim()) === -1) sceneTags.push(ws.scene.trim()); }); }
-        if (sceneTags.length === 0) { if (typeof wbMode !== 'undefined' && wbMode) { var wbScenes = []; var wbStyles = typeof worldBookStylesModern !== 'undefined' ? worldBookStylesModern : []; wbStyles.forEach(function(ws) { if (ws.scene && wbScenes.indexOf(ws.scene) === -1) wbScenes.push(ws.scene); }); sceneTags = wbScenes.slice(0, 6); if (sceneTags.length === 0) { el.innerHTML = ''; return; } } else { el.innerHTML = ''; return; } }
-        // Limit to first 6
-        sceneTags = sceneTags.slice(0, 6);
-        var wbOnlyQS = false; el.innerHTML = '<label style="display:flex;align-items:center;gap:4px;font-size:.65em;opacity:.7;margin-right:4px;cursor:pointer;white-space:nowrap"><input type="checkbox" id="om-qs-wbonly" style="margin:0" /> 仅世界书</label>' + sceneTags.map(function(tag) {
-            return '<button class="om-quick-scene-btn" data-scene="' + esc(tag) + '">' + esc(tag) + '</button>';
+        var el = document.getElementById('om-quick-scenes');
+        if (!el) return;
+        el.innerHTML = '<span class="om-quick-title">场景</span><div class="om-quick-panel"><span style="font-size:.76em;opacity:.62;white-space:nowrap">加载中</span></div>';
+        var ctx = typeof SillyTavern !== 'undefined' && SillyTavern.getContext ? SillyTavern.getContext() : null;
+        var selectedWBNames = [];
+        try {
+            selectedWBNames = getSelectedWorldBookNames(ctx, d);
+        } catch (err) {
+            var errPanel = el.querySelector('.om-quick-panel');
+            if (errPanel) errPanel.innerHTML = '<span style="font-size:.76em;opacity:.7;white-space:nowrap">世界书读取失败</span>';
+            console.warn('[OutfitManager] quick scenes failed to read world books', err);
+            return;
+        }
+        if ((!d.selectedWorldBookNames || d.selectedWorldBookNames.length === 0) && selectedWBNames.length > 0) {
+            d.selectedWorldBookNames = selectedWBNames.slice();
+            save(d);
+        }
+        var missingWB = selectedWBNames.some(function (name) { return !worldBookStyleCache[name]; });
+        if (missingWB && renderQuickScenes._loadingKey !== selectedWBNames.join('|')) {
+            renderQuickScenes._loadingKey = selectedWBNames.join('|');
+            refreshWorldBookStyles(selectedWBNames, function () { renderQuickScenes(load()); });
+        }
+        function isLingerieStyle(ws) {
+            return /内衣/.test(String((ws && ws.source) || '')) || /内衣|文胸|内裤|抹胸|蕾丝性感|法式三角杯|聚拢|丝绸奢华|基础纯棉|少女可爱/.test(String((ws && ws.name) || ''));
+        }
+        function modernMatches(scene) {
+            return getWorldBookStyles(selectedWBNames).filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
+        }
+        function lingerieMatches(scene) {
+            if (scene === '家居' || scene === '睡前') return [];
+            return getWorldBookStyles(selectedWBNames).filter(function(ws) { return isLingerieStyle(ws); });
+        }
+        var sceneDefs = [
+            { key: '外出', label: '外出' },
+            { key: '约会', label: '约会' },
+            { key: '办公', label: '通勤' },
+            { key: '家居', label: '家居' },
+            { key: '运动', label: '运动' },
+            { key: '睡前', label: '睡前' }
+        ].filter(function(def) {
+            return modernMatches(def.key).length > 0 || lingerieMatches(def.key).length > 0;
+        }).slice(0, 6);
+        var panelHtml = sceneDefs.length === 0
+            ? '<span style="font-size:.76em;opacity:.62;white-space:nowrap">暂无场景</span>'
+            : sceneDefs.map(function(def) {
+            return '<button class="om-quick-scene-btn" data-scene="' + esc(def.key) + '">' + esc(def.label) + '</button>';
         }).join('');
+        el.innerHTML = '<span class="om-quick-title">场景</span><div class="om-quick-panel">' + panelHtml + '</div>';
         el.querySelectorAll('.om-quick-scene-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var scene = this.dataset.scene;
-                var wbOnlyChecked = document.getElementById('om-qs-wbonly') ? document.getElementById('om-qs-wbonly').checked : false; var outfits = wbOnlyChecked ? [] : getViewOutfits(d).filter(function(o) { return o.sceneTag && o.sceneTag.trim() === scene; }); if (typeof wbMode !== 'undefined' && (wbMode || wbOnlyChecked)) { getWorldBookStyles().filter(function(ws) { return ws.scene === scene; }).forEach(function(ws, wi) { outfits.push({ id: 'wb_qs_' + wi, name: ws.name, category: ws.scene, type: 'outfit', style: ws.style, season: ws.season, sceneTag: ws.scene, description: ws.desc, imageData: null, isVirtual: true }); }); }
-                if (outfits.length === 0) { toast('没有「' + scene + '」场景的穿搭', true); return; }
-                var picked = outfits[Math.floor(Math.random() * outfits.length)];
+                var outfits = [];
+                var modernPool = modernMatches(scene);
+                var lingeriePool = lingerieMatches(scene);
+                if (modernPool.length > 0) outfits.push(createWorldBookOutfit(modernPool[Math.floor(Math.random() * modernPool.length)], 'wb_qs_' + scene + '_modern', 0));
+                if (lingeriePool.length > 0) outfits.push(createWorldBookOutfit(lingeriePool[Math.floor(Math.random() * lingeriePool.length)], 'wb_qs_' + scene + '_inner', 1));
+                if (outfits.length === 0) { toast('当前没有可用穿搭', true); renderQuickScenes(load()); return; }
                 var dd = load();
-                // Activate only this outfit
+                // Activate the rolled outfit pair.
                 dd.activeIds = [];
                 if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
-                if (picked.isVirtual) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; } dd.activeIds = [picked.id];
-                var confirmPick = function() { save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast('已换上「' + picked.name + '」(' + scene + ')'); };
-                if (picked.isVirtual) {
-                    var modal2 = document.createElement('div'); modal2.className = 'om-modal';
-                    var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
-                    modal2.innerHTML = '<div class="om-modal-box" style="max-width:460px;background:' + bgg + ';color:' + fgg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-shirt"></i> ' + esc(picked.name) + '</div>' +
-                        '<div style="display:flex;gap:16px;margin:12px 0;font-size:.82em;opacity:.7"><span>风格：' + esc(picked.style || '') + '</span><span>季节：' + esc(picked.season || '') + '</span><span>场景：' + esc(picked.sceneTag || '') + '</span></div>' +
-                        '<div style="background:rgba(127,127,127,.08);border-radius:10px;padding:16px;font-size:.9em;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto">' + esc(picked.description || '') + '</div>' +
-                        '<div class="om-btn-row" style="margin-top:12px;gap:10px"><button class="om-btn om-btn-safe" id="om-desc-confirm"><i class="fa-solid fa-check"></i> 确认</button><button class="om-btn om-btn-outline" id="om-desc-close">关闭</button></div></div>';
-                    var mp2 = getPopupLayer(); modal2.style.cssText = 'position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
-                    mp2.appendChild(modal2); modal2.addEventListener('click', function(e) { if (e.target === modal2) mp2.removeChild(modal2); });
-                    modal2.querySelector('#om-desc-confirm').addEventListener('click', function() { confirmPick(); mp2.removeChild(modal2); });
-                    modal2.querySelector('#om-desc-close').addEventListener('click', function() { mp2.removeChild(modal2); });
-                } else if (picked.imageData) {
-                    confirmPick();
-                    openLightbox([picked], picked.id);
-                    setTimeout(function() { var lb = document.getElementById('om-lightbox'); if (lb && lb.parentNode) lb.parentNode.removeChild(lb); }, 3000);
-                } else {
-                    confirmPick();
-                }
+                outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
+                var confirmPick = function() { save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast('已换上 ' + outfits.length + ' 套（' + scene + '）'); };
+                var modal2 = document.createElement('div'); modal2.className = 'om-modal';
+                var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
+                var bodyHtml = outfits.map(function (o) {
+                    var label = isLingerieStyle(o) ? '内衣' : '外穿';
+                    return '<div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:6px">' + label + '：' + esc(o.name) + '</div>' +
+                        '<div style="background:rgba(127,127,127,.08);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;white-space:pre-wrap">' + esc(o.description || '') + '</div></div>';
+                }).join('');
+                modal2.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bgg + ';color:' + fgg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-shirt"></i> ' + esc(scene) + '搭配结果</div>' +
+                    '<div style="max-height:360px;overflow-y:auto;margin-top:12px">' + bodyHtml + '</div>' +
+                    '<div class="om-btn-row" style="margin-top:12px;gap:10px"><button class="om-btn om-btn-safe" id="om-desc-confirm"><i class="fa-solid fa-check"></i> 确认</button><button class="om-btn om-btn-outline" id="om-desc-close">关闭</button></div></div>';
+                var mp2 = getPopupLayer(); modal2.style.cssText = 'position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
+                mp2.appendChild(modal2); modal2.addEventListener('click', function(e) { if (e.target === modal2) mp2.removeChild(modal2); });
+                modal2.querySelector('#om-desc-confirm').addEventListener('click', function() { confirmPick(); mp2.removeChild(modal2); });
+                modal2.querySelector('#om-desc-close').addEventListener('click', function() { mp2.removeChild(modal2); });
             });
         });
     }
@@ -1816,7 +2090,13 @@
 
     function openRandomRoll() {
         var d = load(); var allOutfits = getViewOutfits(d);
-        if (allOutfits.length === 0) { toast('还没有任何穿搭', true); return; }
+        var rollCtx = typeof SillyTavern !== 'undefined' && SillyTavern.getContext ? SillyTavern.getContext() : null;
+        var selectedWBNames = getSelectedWorldBookNames(rollCtx, d);
+        if ((!d.selectedWorldBookNames || d.selectedWorldBookNames.length === 0) && selectedWBNames.length > 0) {
+            d.selectedWorldBookNames = selectedWBNames.slice();
+            save(d);
+        }
+        if (allOutfits.length === 0 && selectedWBNames.length === 0) { toast('还没有任何穿搭，也没有选择世界书', true); return; }
         var styles = []; var seasons = []; var scenes = [];
         allOutfits.forEach(function (o) { if (o.style && o.style.trim() && styles.indexOf(o.style.trim()) === -1) styles.push(o.style.trim()); if (o.season && o.season.trim() && seasons.indexOf(o.season.trim()) === -1) seasons.push(o.season.trim()); if (o.sceneTag && o.sceneTag.trim() && scenes.indexOf(o.sceneTag.trim()) === -1) scenes.push(o.sceneTag.trim()); });
         var sopts = styles.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
@@ -1826,8 +2106,7 @@
             '<div class="om-sheet-title"><i class="fa-solid fa-dice"></i>随机搭配</div>',
             '<div class="om-field"><label style="font-weight:600;font-size:.85em;margin-bottom:4px">世界书风格</label>',
             '<div style="display:flex;flex-direction:column;gap:4px;font-size:.82em">',
-            '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="om-roll-wb-modern" checked /> 💎uu现代v2.1（20种风格）</label>',
-            '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="om-roll-wb-lingerie" /> 🦋uu内衣v1.0（5款）</label>',
+            '<div id="om-roll-wb-list" style="display:flex;flex-direction:column;gap:4px;font-size:.82em"><i class="fa-solid fa-spinner fa-spin"></i> 加载世界书...</div>',
             '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:2px"><input type="checkbox" id="om-roll-wb-only" /> 仅roll世界书（不含衣柜）</label>',
             '</div></div>',
             '<div class="om-field"><label>风格</label><select id="om-roll-style"><option value="">不限</option>' + sopts + '</select></div>',
@@ -1838,11 +2117,66 @@
             '<div class="om-btn-row" style="margin-top:10px"><button class="om-btn om-btn-safe" id="om-roll-go">随机搭配！</button><button class="om-btn om-btn-outline" id="om-roll-cancel">取消</button></div>'
         ]);
         var lastResult = null;
-        function doRoll() { var ss = sheet.querySelector('#om-roll-style').value; var sn = sheet.querySelector('#om-roll-season').value; var sc = sheet.querySelector('#om-roll-scene').value; var sm = sheet.querySelector('#om-roll-mode').value; var useWBModern = sheet.querySelector('#om-roll-wb-modern') ? sheet.querySelector('#om-roll-wb-modern').checked : false; var useWBLingerie = sheet.querySelector('#om-roll-wb-lingerie') ? sheet.querySelector('#om-roll-wb-lingerie').checked : false; var useWBOnly = sheet.querySelector('#om-roll-wb-only') ? sheet.querySelector('#om-roll-wb-only').checked : false; var pool = useWBOnly ? [] : allOutfits.slice(); if (useWBModern) { (worldBookStylesModern || []).forEach(function(ws, wi) { pool.push({ id: 'wb_modern_' + wi, name: ws.name, category: ws.scene, type: 'outfit', style: ws.style, season: ws.season, sceneTag: ws.scene, description: ws.desc, imageData: null, isVirtual: true, source: '💎uu现代' }); }); } if (useWBLingerie) { (worldBookStylesLingerie || []).forEach(function(ws, wi) { pool.push({ id: 'wb_lingerie_' + wi, name: ws.name, category: ws.scene, type: 'outfit', style: ws.style, season: ws.season, sceneTag: ws.scene, description: ws.desc, imageData: null, isVirtual: true, source: '🦋uu内衣' }); }); } var f = pool.filter(function (o) { if (ss && (!o.style || o.style.trim() !== ss)) return false; if (sn && (!o.season || o.season.trim() !== sn)) return false; if (sc && (!o.sceneTag || o.sceneTag.trim() !== sc)) return false; return true; }); if (f.length === 0) { toast('没有匹配的穿搭', true); return; } var r = { outfits: [], items: [] }; var fo = f.filter(function (o) { return !o.type || o.type === 'outfit'; }); var fi = f.filter(function (o) { return o.type === 'item'; }); if (sm === 'outfit') { if (fo.length === 0) { toast('没有匹配的套装', true); return; } r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; } else if (sm === 'items') { var g = {}; fi.forEach(function (it) { var c = it.category || '其他'; if (!g[c]) g[c] = []; g[c].push(it); }); for (var k in g) r.items.push(g[k][Math.floor(Math.random() * g[k].length)]); } else { if (fo.length > 0) r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; var g2 = {}; fi.forEach(function (it) { var c2 = it.category || '其他'; if (!g2[c2]) g2[c2] = []; g2[c2].push(it); }); for (var k2 in g2) r.items.push(g2[k2][Math.floor(Math.random() * g2[k2].length)]); } lastResult = r; var h = '<div>'; if (r.outfits.length > 0) { h += '<div style="font-weight:600;margin-bottom:8px">套装</div>'; r.outfits.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:8px;background:rgba(127,127,127,.06);border-radius:8px">'; if (o.imageData) h += '<img src="' + o.imageData + '" style="width:80px;height:106px;object-fit:cover;border-radius:6px;flex-shrink:0" />'; h += '<div style="min-width:0"><div style="font-weight:600;margin-bottom:2px">' + esc(o.name) + '</div>'; if (o.style) h += '<div style="font-size:.8em;opacity:.7">风格：' + esc(o.style) + '</div>'; if (o.season) h += '<div style="font-size:.8em;opacity:.7">季节：' + esc(o.season) + '</div>'; if (o.sceneTag) h += '<div style="font-size:.8em;opacity:.7">场景：' + esc(o.sceneTag) + '</div>'; if (o.description) h += '<div style="font-size:.82em;opacity:.85;margin-top:6px;line-height:1.6;padding:8px;background:rgba(127,127,127,.05);border-radius:6px;white-space:pre-wrap">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } if (r.items.length > 0) { h += '<div style="font-weight:600;margin:8px 0">单品</div>'; r.items.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:6px 8px;background:rgba(127,127,127,.04);border-radius:6px">'; if (o.imageData) h += '<img src="' + o.imageData + '" style="width:60px;height:80px;object-fit:cover;border-radius:4px;flex-shrink:0" />'; h += '<div><span style="font-size:.75em;opacity:.5">' + esc(o.category || '其他') + '</span><br>' + esc(o.name) + esc(o.name) + '</div>'; if (o.description) h += '<div style="font-size:.75em;opacity:.7;margin-top:2px;line-height:1.4">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } h += '</div>'; sheet.querySelector('#om-roll-result').innerHTML = h; sheet.querySelector('#om-roll-result-area').style.display = ''; }
+        // Populate world book checkboxes dynamically
+        (function populateWBList() {
+            var container = sheet.querySelector('#om-roll-wb-list');
+            if (!container) return;
+            try {
+                var ctx = typeof SillyTavern !== 'undefined' && SillyTavern.getContext ? SillyTavern.getContext() : null;
+                var dd = load();
+                var selectedDefaults = getSelectedWorldBookNames(ctx, dd);
+                var wbNames = selectedDefaults.slice();
+                if (wbNames.length === 0) {
+                    container.innerHTML = '<span style="opacity:.5">没有找到默认 uu 世界书，请先在酒馆中创建或选择世界书。</span>';
+                    return;
+                }
+                var selected = selectedDefaults.slice();
+                var h = '';
+                wbNames.forEach(function(name, idx) {
+                    var checked = selected.indexOf(name) !== -1 ? ' checked' : '';
+                    h += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="om-roll-wb-book" value="' + name.replace(/"/g,'&quot;') + '"' + checked + ' /> ' + name.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</label>';
+                });
+                container.innerHTML = h;
+                dd.selectedWorldBookNames = selected;
+                save(dd);
+                // Save selection on change
+                container.querySelectorAll('.om-roll-wb-book').forEach(function(cb) {
+                    cb.addEventListener('change', function() {
+                        var dd2 = load();
+                        dd2.selectedWorldBookNames = [];
+                        container.querySelectorAll('.om-roll-wb-book:checked').forEach(function(c) { dd2.selectedWorldBookNames.push(c.value); });
+                        save(dd2);
+                    });
+                });
+                // Load world books if cache is empty
+                var needLoad = false;
+                wbNames.forEach(function(n) { if (!worldBookStyleCache[n]) needLoad = true; });
+                if (needLoad) {
+                    refreshWorldBookStyles(wbNames, function() {
+                        container.querySelectorAll('.om-roll-wb-book').forEach(function(cb) {
+                            if (worldBookStyleCache[cb.value]) {
+                                var count = worldBookStyleCache[cb.value].length;
+                                var txt = cb.parentElement.textContent;
+                                if (!/\(\d/.test(txt)) {
+                                    cb.parentElement.appendChild(document.createTextNode(' (' + count + '套'));
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    container.querySelectorAll('.om-roll-wb-book').forEach(function(cb) {
+                        if (worldBookStyleCache[cb.value]) {
+                            var count = worldBookStyleCache[cb.value].length;
+                            cb.parentElement.appendChild(document.createTextNode(' (' + count + '套)'));
+                        }
+                    });
+                }
+            } catch(e) { container.innerHTML = '<span style="opacity:.5">加载世界书失败</span>'; }
+        })();
+        function doRoll() { var ss = sheet.querySelector('#om-roll-style').value; var sn = sheet.querySelector('#om-roll-season').value; var sc = sheet.querySelector('#om-roll-scene').value; var sm = sheet.querySelector('#om-roll-mode').value; var useWBOnly = sheet.querySelector('#om-roll-wb-only') ? sheet.querySelector('#om-roll-wb-only').checked : false; var pool = useWBOnly ? [] : allOutfits.slice(); var wbList = sheet.querySelector('#om-roll-wb-list'); if (wbList) { var wbChecks = wbList.querySelectorAll('input[type=checkbox].om-roll-wb-book:checked'); wbChecks.forEach(function(cb) { var wbName = cb.value; if (worldBookStyleCache[wbName]) { worldBookStyleCache[wbName].forEach(function(ws, wi) { pool.push(createWorldBookOutfit(ws, 'wb_dyn_' + wbName.replace(/[^a-zA-Z0-9]/g,'_'), wi)); }); }});} var f = pool.filter(function (o) { if (ss && (!o.style || o.style.trim() !== ss)) return false; if (sn && (!o.season || o.season.trim() !== sn)) return false; if (sc && (!o.sceneTag || o.sceneTag.trim() !== sc)) return false; return true; }); if (f.length === 0) { toast('没有匹配的穿搭', true); return; } var r = { outfits: [], items: [] }; var fo = f.filter(function (o) { return !o.type || o.type === 'outfit'; }); var fi = f.filter(function (o) { return o.type === 'item'; }); if (sm === 'outfit') { if (fo.length === 0) { toast('没有匹配的套装', true); return; } r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; } else if (sm === 'items') { var g = {}; fi.forEach(function (it) { var c = it.category || '其他'; if (!g[c]) g[c] = []; g[c].push(it); }); for (var k in g) r.items.push(g[k][Math.floor(Math.random() * g[k].length)]); } else { if (fo.length > 0) r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; var g2 = {}; fi.forEach(function (it) { var c2 = it.category || '其他'; if (!g2[c2]) g2[c2] = []; g2[c2].push(it); }); for (var k2 in g2) r.items.push(g2[k2][Math.floor(Math.random() * g2[k2].length)]); } lastResult = r; var h = '<div>'; if (r.outfits.length > 0) { h += '<div style="font-weight:600;margin-bottom:8px">套装</div>'; r.outfits.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:8px;background:rgba(127,127,127,.06);border-radius:8px">'; if (o.imageData) h += '<img src="' + o.imageData + '" style="width:80px;height:106px;object-fit:cover;border-radius:6px;flex-shrink:0" />'; h += '<div style="min-width:0"><div style="font-weight:600;margin-bottom:2px">' + esc(o.name) + '</div>'; if (o.style) h += '<div style="font-size:.8em;opacity:.7">风格：' + esc(o.style) + '</div>'; if (o.season) h += '<div style="font-size:.8em;opacity:.7">季节：' + esc(o.season) + '</div>'; if (o.sceneTag) h += '<div style="font-size:.8em;opacity:.7">场景：' + esc(o.sceneTag) + '</div>'; if (o.description) h += '<div style="font-size:.82em;opacity:.85;margin-top:6px;line-height:1.6;padding:8px;background:rgba(127,127,127,.05);border-radius:6px;white-space:pre-wrap">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } if (r.items.length > 0) { h += '<div style="font-weight:600;margin:8px 0">单品</div>'; r.items.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:6px 8px;background:rgba(127,127,127,.04);border-radius:6px">'; if (o.imageData) h += '<img src="' + o.imageData + '" style="width:60px;height:80px;object-fit:cover;border-radius:4px;flex-shrink:0" />'; h += '<div><span style="font-size:.75em;opacity:.5">' + esc(o.category || '其他') + '</span><br>' + esc(o.name) + '</div>'; if (o.description) h += '<div style="font-size:.75em;opacity:.7;margin-top:2px;line-height:1.4">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } h += '</div>'; sheet.querySelector('#om-roll-result').innerHTML = h; sheet.querySelector('#om-roll-result-area').style.display = ''; }
         sheet.querySelector('#om-roll-go').addEventListener('click', doRoll);
         sheet.querySelector('#om-roll-cancel').addEventListener('click', function () { closeSheet(sheet); });
-        sheet.querySelector('#om-roll-apply').addEventListener('click', function () { if (!lastResult) return; var dd = load(); dd.activeIds = []; if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = []; var ids = []; lastResult.outfits.forEach(function (o) { if (o.isVirtual) { var no = { id: genId(), name: o.name, category: o.category || '', type: 'outfit', style: o.style || '', season: o.season || '', sceneTag: o.sceneTag || '', description: o.description || '', imageData: null, createdAt: Date.now(), isVirtual: true }; dd.virtualOutfits[no.id] = no; ids.push(no.id); } else { ids.push(o.id); } }); lastResult.items.forEach(function (o) { ids.push(o.id); }); if (dd.currentView === 'char' && dd.currentChar) getCharData(dd, dd.currentChar).activeIds = ids; else dd.activeIds = ids; save(dd); closeSheet(sheet); toast('已应用！(' + ids.length + '件)'); renderGrid(); renderBottomStatus(); updateBtn(); });
-        doRoll();
+        sheet.querySelector('#om-roll-apply').addEventListener('click', function () { if (!lastResult) return; var dd = load(); dd.activeIds = []; if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = []; var ids = []; lastResult.outfits.forEach(function (o) { if (o.isVirtual) { var no = { id: genId(), name: o.name, category: o.category || '', type: 'outfit', style: o.style || '', season: o.season || '', sceneTag: o.sceneTag || '', description: o.description || '', imageData: null, createdAt: Date.now(), isVirtual: true }; dd.virtualOutfits[no.id] = no; ids.push(no.id); } else { ids.push(o.id); } }); lastResult.items.forEach(function (o) { ids.push(o.id); }); if (dd.currentView === 'char' && dd.currentChar) getCharData(dd, dd.currentChar).activeIds = ids; else dd.activeIds = ids; save(dd); closeSheet(sheet); toast('已应用！(' + ids.length + '件)'); renderGrid(); renderBottomStatus(); updateBtn(); });
     }
 
     function openEditSheet(outfit, defaultCat) {
@@ -2552,6 +2886,7 @@
     var fabResizeHandler = null;
 
     function injectFab() {
+        if (document.querySelector('.om-overlay')) return;
         if (document.getElementById(FAB_ID)) return;
         var d = load(); if (d.showBall === false) return;
         var container = document.createElement('div'); container.id = FAB_ID;
@@ -2629,7 +2964,10 @@
         document.body.appendChild(container);
     }
 
-    function closeFab() { /* no-op, fab is now single button */ }
+    function closeFab() {
+        var fab = document.getElementById(FAB_ID);
+        if (fab && fab.parentNode) fab.parentNode.removeChild(fab);
+    }
 
     // ── 批量 AI 生成描述弹窗 ──────────────────────────────────
     function openBatchDescModal(ids) {
@@ -3152,19 +3490,39 @@
     setInterval(function () { if (!document.getElementById(FAB_ID)) injectFab(); }, 3000);
 
     loadFromDB(function (d) {
-        // Auto-roll: if nothing active, pick random world book style
-        if ((!d.activeIds || d.activeIds.length === 0) && !d.autoRollDisabled) {
-            var allWB = [];
-            if (typeof worldBookStylesModern !== 'undefined') allWB = allWB.concat(worldBookStylesModern);
-            if (typeof worldBookStylesLingerie !== 'undefined') allWB = allWB.concat(worldBookStylesLingerie);
-            if (allWB.length > 0) {
-                var pick = allWB[Math.floor(Math.random() * allWB.length)];
-                var o = { id: genId(), name: pick.name, category: pick.scene || '', type: 'outfit', style: pick.style || '', season: pick.season || '', sceneTag: pick.scene || '', description: pick.desc || '', imageData: null, isVirtual: true, createdAt: Date.now() };
-                d.virtualOutfits[o.id] = o;
-                d.activeIds = [o.id];
-                save(d);
-                if (typeof toast !== 'undefined') setTimeout(function() { toast('今日穿搭：「' + pick.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）', false, 4000); }, 3500);
+        var finishStartup = function () {
+            dataCache = d;
+            if (d.useMainApi !== false) autoDetectApiConfig(d);
+            var lsData = loadFromLS();
+            if (lsData && lsData.outfits && lsData.outfits.length > 0 && (!d.outfits || d.outfits.length === 0)) {
+                dataCache = ensureDefaults(lsData);
+                saveToDB(dataCache, function () { try { localStorage.removeItem('outfit_mgr_v4'); } catch (e) {} });
             }
+            updateBtn();
+        };
+        // Auto-roll: if nothing active, pick from selected world books after they are loaded.
+        var startupCtx = typeof SillyTavern !== 'undefined' && SillyTavern.getContext ? SillyTavern.getContext() : null;
+        var startupWorldBooks = getSelectedWorldBookNames(startupCtx, d);
+        if ((!d.selectedWorldBookNames || d.selectedWorldBookNames.length === 0) && startupWorldBooks.length > 0) {
+            d.selectedWorldBookNames = startupWorldBooks.slice();
+            save(d);
+        }
+        if ((!d.activeIds || d.activeIds.length === 0) && !d.autoRollDisabled && startupWorldBooks.length > 0) {
+            refreshWorldBookStyles(startupWorldBooks, function () {
+                var allWB = getWorldBookStyles(startupWorldBooks);
+                if (allWB.length > 0) {
+                    var pick = allWB[Math.floor(Math.random() * allWB.length)];
+                    var o = createWorldBookOutfit(pick, 'wb_startup', Date.now());
+                    o.id = genId();
+                    o.createdAt = Date.now();
+                    d.virtualOutfits[o.id] = o;
+                    d.activeIds = [o.id];
+                    save(d);
+                    if (typeof toast !== 'undefined') setTimeout(function() { toast('今日穿搭：「' + pick.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）', false, 4000); }, 3500);
+                }
+                finishStartup();
+            });
+            return;
         } else if (d.activeIds && d.activeIds.length > 0) {
             // Show existing active outfit on restart
             var names = [];
@@ -3174,13 +3532,7 @@
             });
             if (names.length > 0 && typeof toast !== 'undefined') setTimeout(function() { toast('今日穿搭：「' + names.join('、') + '」', false, 4000); }, 3500);
         }
-        dataCache = d;
-        if (d.useMainApi !== false) autoDetectApiConfig(d);
-        var lsData = loadFromLS();
-        if (lsData && lsData.outfits && lsData.outfits.length > 0 && (!d.outfits || d.outfits.length === 0)) {
-            dataCache = ensureDefaults(lsData);
-            saveToDB(dataCache, function () { try { localStorage.removeItem('outfit_mgr_v4'); } catch (e) {} });
-        }
+        finishStartup();
         updateBtn();
     });
 

@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html><body style="font-family:monospace;padding:20px;background:#1a1a2e;color:#eee">
+<h2>🔍 穿搭数据恢复检查</h2>
+<div id="out"></div>
+<script>
+var out = document.getElementById('out');
+function log(msg, color) { out.innerHTML += '<div style="color:'+(color||'#eee')+';margin:4px 0">'+msg+'</div>'; }
+
+// Check IndexedDB
+log('<b>=== IndexedDB ===</b>', '#7c6daf');
+try {
+    var r = indexedDB.open('outfit_mgr_db');
+    r.onsuccess = function(e) {
+        var db = e.target.result;
+        log('DB 状态: 已连接', '#4caf50');
+        try {
+            var tx = db.transaction('data', 'readonly');
+            var req = tx.objectStore('data').get('main');
+            req.onsuccess = function() {
+                var d = req.result;
+                if (d && d.outfits && d.outfits.length > 0) {
+                    log('✅ 找到 ' + d.outfits.length + ' 套穿搭！数据完好', '#4caf50');
+                    d.outfits.slice(0,5).forEach(function(o,i){
+                        log('  '+(i+1)+'. '+o.name, '#aaa');
+                    });
+                } else {
+                    log('⚠️ IndexedDB 存在但穿搭为空 (outfits: '+(d&&d.outfits?d.outfits.length:'N/A')+')', '#ff9800');
+                }
+            };
+            req.onerror = function() { log('❌ 读取 data store 失败', '#f44336'); };
+        } catch(ex) {
+            log('❌ 事务失败: '+ex.message, '#f44336');
+        }
+    };
+    r.onerror = function() { log('❌ IndexedDB 无法打开（可能被清除）', '#f44336'); };
+    r.onblocked = function() { log('⚠️ IndexedDB 被阻塞', '#ff9800'); };
+} catch(ex) { log('❌ indexedDB API 不可用', '#f44336'); }
+
+// Check localStorage
+log('<br><b>=== localStorage ===</b>', '#7c6daf');
+['outfit_mgr_v4','outfit_mgr_v4_backup'].forEach(function(key){
+    try {
+        var v = localStorage.getItem(key);
+        if (v) {
+            var d = JSON.parse(v);
+            if (d && d.outfits && d.outfits.length > 0) {
+                log('✅ '+key+': '+d.outfits.length+' 套穿搭！', '#4caf50');
+                d.outfits.slice(0,3).forEach(function(o,i){
+                    log('  '+(i+1)+'. '+o.name, '#aaa');
+                });
+            } else {
+                log('⚠️ '+key+' 存在但内容为空', '#ff9800');
+            }
+        } else {
+            log('⛔ '+key+': 不存在', '#666');
+        }
+    } catch(ex) { log('❌ '+key+': 解析失败 - '+ex.message, '#f44336'); }
+});
+
+log('<br><b>诊断建议：</b>', '#7c6daf');
+log('1. 如果 IndexedDB 有数据但酒馆加载不出来 → 可能是端口变了', '#aaa');
+log('2. 如果 localStorage 有数据 → 可以手动恢复', '#aaa');
+log('3. 如果都没有 → 数据已被清除，无法恢复', '#aaa');
+log('<br>当前页面: '+location.href, '#666');
+</script></body></html>
