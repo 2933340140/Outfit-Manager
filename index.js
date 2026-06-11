@@ -829,9 +829,16 @@
         var name = String((ws && (ws.name || ws.style)) || '').replace(/[💫🚫]/g, '').trim();
         var map = {
             '纯欲风': ['外出', '约会'],
-            '日系保暖': ['外出'],
+            '甜酷风': ['外出', '约会'],
+            '休闲风': ['外出'],
+            '千禧y2k风': ['外出', '约会'],
+            '运动风(街头潮牌版)': ['运动'],
+            '运动风(街头潮牌版': ['运动'],
+            '运动风(街头潮牌版': ['运动'],
+            '日系复古风': ['外出', '约会'],
+            '日系保暖': ['外出', '约会'],
+            '办公室海妖风': ['外出', '约会'],
             '通勤休闲风': ['外出', '办公'],
-            '洛丽塔': ['外出'],
             '学院风': ['外出'],
             '韩系日常风': ['外出', '办公', '约会'],
             '韩系女团风': ['外出', '约会'],
@@ -844,15 +851,16 @@
             '轻熟职场风': ['外出', '办公', '约会'],
             '多巴胺风': ['外出', '约会'],
             '欧美风': ['外出', '约会'],
-            'bm风': ['外出'],
-            '轻亚风': ['外出'],
-            '基础纯棉': ['家居', '睡前'],
+            'bm风': ['外出', '约会'],
+            '轻亚风': ['外出', '约会'],
+            '睡衣': ['家居', '睡前'],
+            '基础纯棉': ['外出', '运动'],
             '蕾丝性感': ['约会'],
-            '法式三角杯': ['约会', '家居'],
+            '法式三角杯': ['约会'],
             '聚拢调整': ['外出', '约会'],
-            '少女可爱': ['家居', '睡前'],
-            '丝绸奢华': ['约会', '睡前'],
-            '抹胸式': ['外出']
+            '少女可爱': ['外出', '约会'],
+            '丝绸奢华': ['约会'],
+            '抹胸式': ['外出', '约会']
         };
         return map[name] || null;
     }
@@ -923,8 +931,8 @@
             if ((full + '\n' + comment + '\n' + key).length < 8) return null;
             var haystack = full + '\n' + comment + '\n' + key;
             if (isWorldBookMetaEntry(haystack)) return null;
-            if (!worldBookClothingPattern.test(haystack)) return null;
-            if (!worldBookClothingPartPattern.test(full)) return null;
+            if (!worldBookClothingPattern.test(haystack) && haystack.indexOf('睡衣') === -1) return null;
+            if (!worldBookClothingPartPattern.test(full) && haystack.indexOf('睡衣') === -1) return null;
             return parseWorldBookEntry(full, comment, key, sourceName);
         }).filter(Boolean);
     }
@@ -1008,6 +1016,16 @@
         if (wig) lines.push('假发：' + wig);
         if (accessories) lines.push('配饰：' + accessories);
         if (shoes) lines.push(shoes.label + '：' + shoes.value);
+        if (lines.length === 0 && /睡衣/i.test(styleName)) {
+            var parts = [];
+            String(text || '').split('\n').forEach(function (l) {
+                var t = l.replace(/^\s*(?:[-*]\s*)(?:\d+\.\s*)?/, '').trim();
+                if (t.length > 20 && !/不可以|例子|仅供参考|指导|刻画|禁止/i.test(t)) {
+                    parts.push(t);
+                }
+            });
+            if (parts.length > 0) return parts[Math.floor(Math.random() * parts.length)];
+        }
         return lines.length > 0 ? lines.join('\n') : '';
     }
     var curType = '__all__';
