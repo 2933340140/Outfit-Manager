@@ -1752,7 +1752,7 @@
         if (!styleGuide) { console.log("[OM-AI] styleGuide empty, fallback"); callback(null); return; }
         console.log("[OM-AI] styleGuide built, len=" + styleGuide.length);
         
-        var sysPrompt = "你是一个穿搭助手。以下是可参考的穿搭风格指导：\n" + styleGuide + "\n必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n只输出穿搭描述本身，不要额外说明。";
+        var sysPrompt = "你是一个穿搭助手。以下是可参考的穿搭风格指导：\n" + styleGuide + "\n必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述。不要额外说明。";
         
         var charInfo = _getCharacterInfo(ctx);
         var chatCtx = _getChatContext(ctx);
