@@ -3375,18 +3375,27 @@
     function stripWorldBookEntries(p) {
         if (!p.messages || !Array.isArray(p.messages)) return;
         var re = /<[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>[\s\S]*?<\/[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>/g;
+        var stripped = 0;
         for (var si = 0; si < p.messages.length; si++) {
             var c = p.messages[si].content;
             if (typeof c === 'string') {
-                p.messages[si].content = c.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                var before = c.length;
+                c = c.replace(re, function(m) { stripped++; return ''; });
+                c = c.replace(/\n{3,}/g, '\n\n');
+                p.messages[si].content = c;
+                if (stripped > 0) console.log('[OM] 剔除 ' + stripped + ' 条世界书穿搭条目 (' + p.messages[si].role + '消息)');
             } else if (Array.isArray(c)) {
                 for (var bi = 0; bi < c.length; bi++) {
                     if (c[bi].type === 'text' && typeof c[bi].text === 'string') {
-                        c[bi].text = c[bi].text.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                        var before2 = c[bi].text.length;
+                        c[bi].text = c[bi].text.replace(re, function(m) { stripped++; return ''; });
+                        c[bi].text = c[bi].text.replace(/\n{3,}/g, '\n\n');
                     }
                 }
+                if (stripped > 0) console.log('[OM] 剔除 ' + stripped + ' 条世界书穿搭条目 (array格式 ' + p.messages[si].role + '消息)');
             }
         }
+        if (stripped === 0) console.log('[OM] 未找到世界书穿搭条目，' + p.messages.length + '条消息已扫描');
     }
 
 
