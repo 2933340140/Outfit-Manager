@@ -1683,7 +1683,7 @@
     // ── 底栏状态 ─────────────────────────────────────────────
     
         // ?? AI Outfit Generation ?????????????????????
-            function _isLingerieStyle(ws) {
+                function _isLingerieStyle(ws) {
         return /内衣/.test(String((ws && ws.source) || '')) || /内衣|文胸|内裤|抹胸|蕾丝性感|法式三角杯|聚拢|丝绸奢华|基础纯棉|少女可爱/.test(String((ws && ws.name) || ''));
     }
 
@@ -1752,14 +1752,17 @@
         if (!styleGuide) { console.log("[OM-AI] styleGuide empty, fallback"); callback(null); return; }
         console.log("[OM-AI] styleGuide built, len=" + styleGuide.length);
         
-        var sysPrompt = "你是一个穿搭助手。以下是可参考的穿搭风格指导：\n" + styleGuide + "\n必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述。不要额外说明。";
+        // System prompt: rules + format + example
+        var sysPrompt = "你是穿搭助手，必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述，不能抄已有的例子，不要额外说明。\n输出例子：<甜酷风>\n上衣：黑色露肩印花短款T恤（露锁骨设计）\n下装：灰紫色层层蛋糕蓬蓬短裙（不规则蕾丝纱质裙摆）\n配饰：黑色猫耳发筯、骷髅元素链条choker、金属多层手链、黑色链条腋下包\n鞋袜：黑灰条纹过膝堆堆长袜、厚底黑色圆头松糕鞋";
         
+        // User prompt: style guide section + context section
         var charInfo = _getCharacterInfo(ctx);
         var chatCtx = _getChatContext(ctx);
-        var userPrompt = "场景：" + scene + "\n";
+        var userPrompt = "=========穿搭风格指导=========\n" + styleGuide + "\n";
+        userPrompt += "=========当前正文和故事情节=========\n";
         if (charInfo) userPrompt += charInfo + "\n";
-        if (chatCtx) userPrompt += "\n当前对话上下文：\n" + chatCtx + "\n";
-        userPrompt += "\n请根据上述规则生成user的穿搭。";
+        if (chatCtx) userPrompt += chatCtx + "\n";
+        userPrompt += "\n场景：" + scene + "\n请根据上述规则生成user的穿搭。";
         
         console.log("[OM-AI] ===== SYSTEM PROMPT =====");
         console.log(sysPrompt);
