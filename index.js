@@ -1698,7 +1698,7 @@
         if (selectedWBNames.length > 0) {
             var allStyles = getWorldBookStyles(selectedWBNames);
             modernRefs = allStyles.filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
-            lingerieRefs = allStyles.filter(function(ws) { return isLingerieStyle(ws); });
+            lingerieRefs = allStyles.filter(function(ws) { return isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
         }
         // Build style guide text from world book raw content
         var styleGuide = "";
