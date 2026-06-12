@@ -3540,6 +3540,7 @@
     setInterval(function () { if (!document.getElementById(FAB_ID)) injectFab(); }, 3000);
 
     loadFromDB(function (d) {
+        console.log("[OM] v21 已加载 - 世界书自动剔除已启用");
         var finishStartup = function () {
             dataCache = d;
             if (d.useMainApi !== false) autoDetectApiConfig(d);
