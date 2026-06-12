@@ -1,4 +1,4 @@
-// 穿搭管理扩展 v19 - SillyTavern Extension
+﻿// 穿搭管理扩展 v19 - SillyTavern Extension
 // ★ v19 改进：
 //   1. 合并注入：User+Char穿搭拼成一条文本后统一注入，避免多条system被忽略
 //   2. 强化模板：默认模板加入角色扮演指令格式，Gemini/DeepSeek/Claude均能识别
@@ -1738,13 +1738,13 @@
                 var lingeriePool = lingerieMatches(scene);
                 if (modernPool.length > 0) outfits.push(createWorldBookOutfit(modernPool[Math.floor(Math.random() * modernPool.length)], 'wb_qs_' + scene + '_modern', 0));
                 if (lingeriePool.length > 0) outfits.push(createWorldBookOutfit(lingeriePool[Math.floor(Math.random() * lingeriePool.length)], 'wb_qs_' + scene + '_inner', 1));
-                if (outfits.length === 0) { toast('当前没有可用穿搭', true); renderQuickScenes(load()); return; }
-                var dd = load();
-                // Activate the rolled outfit pair.
-                dd.activeIds = [];
-                if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
-                outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
-                var confirmPick = function() { save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast('已换上 ' + outfits.length + ' 套（' + scene + '）'); };
+                var confirmPick = function() {
+                    var dd = load();
+                    dd.activeIds = [];
+                    if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
+                    outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
+                    save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast('已换上 ' + outfits.length + ' 套（' + scene + '）');
+                };
                 var modal2 = document.createElement('div'); modal2.className = 'om-modal';
                 var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
                 var bodyHtml = outfits.map(function (o) {
@@ -3526,7 +3526,8 @@
             d.selectedWorldBookNames = startupWorldBooks.slice();
             save(d);
         }
-        if ((!d.activeIds || d.activeIds.length === 0) && !d.autoRollDisabled && startupWorldBooks.length > 0) {
+        var hasExistingData = (d.virtualOutfits && Object.keys(d.virtualOutfits).length > 0) || (d.outfits && d.outfits.length > 0);
+        if ((!d.activeIds || d.activeIds.length === 0) && !d.autoRollDisabled && startupWorldBooks.length > 0 && !hasExistingData) {
             refreshWorldBookStyles(startupWorldBooks, function () {
                 var allWB = getWorldBookStyles(startupWorldBooks);
                 if (allWB.length > 0) {
