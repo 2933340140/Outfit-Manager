@@ -1748,7 +1748,7 @@
                     dd.activeIds = [];
                     if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
                     outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
-                    save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast('已换上 ' + outfits.length + ' 套（' + scene + '）');
+                    save(dd); var _test = load(); var _aid = dd.activeIds[0]; var _vo = _test.virtualOutfits && _test.virtualOutfits[_aid]; console.log("[OM] 保存后验证 desc长度:", _vo ? _vo.description.length : "无", "| 前80字:", _vo ? _vo.description.substring(0,80) : "N/A"); renderGrid(); renderBottomStatus(); updateBtn(); toast("已换上 " + outfits.length + " 套（" + scene + "）");
                 };
                 var modal2 = document.createElement('div'); modal2.className = 'om-modal';
                 var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
