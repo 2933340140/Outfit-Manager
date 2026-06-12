@@ -3418,6 +3418,15 @@
         if (owners.length === 0) return null;
         // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
         stripWorldBookEntries(p);
+        var _hasWB = /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(JSON.stringify(p));
+        if (_hasWB) {
+            console.log("[OM] 剔除后仍有标签! msgs:", p.messages?p.messages.length:0, "keys:", Object.keys(p).join(","));
+            if (p.messages) for (var _di=0; _di<p.messages.length; _di++) {
+                var _mc = p.messages[_di].content;
+                var _ms = typeof _mc==="string" ? _mc : Array.isArray(_mc) ? JSON.stringify(_mc).substring(0,200) : String(_mc||"").substring(0,200);
+                if (/<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(_ms)) console.log("[OM]   msg["+_di+"] "+p.messages[_di].role+" 含标签 len="+_ms.length);
+            }
+        }
 
         // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
         var allTextParts = [];
