@@ -3431,7 +3431,7 @@
             if (p.messages) for (var _di=0; _di<p.messages.length; _di++) {
                 var _mc = p.messages[_di].content;
                 var _ms = typeof _mc==="string" ? _mc : Array.isArray(_mc) ? JSON.stringify(_mc).substring(0,200) : String(_mc||"").substring(0,200);
-                if (/<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(_ms)) console.log("[OM]   msg["+_di+"] "+p.messages[_di].role+" 含标签 len="+_ms.length);
+                if (/<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(_ms)) console.log("[OM]   msg["+_di+"] "+p.messages[_di].role+" 含标签 len="+_ms.length+" preview="+_ms.substring(0,150));
             }
         }
 
