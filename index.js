@@ -1739,6 +1739,11 @@
                 if (modernPool.length > 0) outfits.push(createWorldBookOutfit(modernPool[Math.floor(Math.random() * modernPool.length)], 'wb_qs_' + scene + '_modern', 0));
                 if (lingeriePool.length > 0) outfits.push(createWorldBookOutfit(lingeriePool[Math.floor(Math.random() * lingeriePool.length)], 'wb_qs_' + scene + '_inner', 1));
                 var confirmPick = function() {
+                    var textareas = modal2.querySelectorAll('.om-roll-desc');
+                    textareas.forEach(function(ta) {
+                        var i = parseInt(ta.dataset.idx);
+                        if (i >= 0 && i < outfits.length) outfits[i].description = ta.value;
+                    });
                     var dd = load();
                     dd.activeIds = [];
                     if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
@@ -1747,10 +1752,10 @@
                 };
                 var modal2 = document.createElement('div'); modal2.className = 'om-modal';
                 var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
-                var bodyHtml = outfits.map(function (o) {
+                var bodyHtml = outfits.map(function (o, idx) {
                     var label = isLingerieStyle(o) ? '内衣' : '外穿';
                     return '<div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:6px">' + label + '：' + esc(o.name) + '</div>' +
-                        '<div style="background:rgba(127,127,127,.08);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;white-space:pre-wrap">' + esc(o.description || '') + '</div></div>';
+                        '<textarea class="om-roll-desc" data-idx="' + idx + '" style="width:100%;min-height:100px;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.3);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;color:' + fgg + ';resize:vertical;font-family:inherit">' + (o.description || '') + '</textarea></div>';
                 }).join('');
                 modal2.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bgg + ';color:' + fgg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-shirt"></i> ' + esc(scene) + '搭配结果</div>' +
                     '<div style="max-height:360px;overflow-y:auto;margin-top:12px">' + bodyHtml + '</div>' +
@@ -3425,15 +3430,7 @@
         if (owners.length === 0) return null;
         // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
         stripWorldBookEntries(p);
-        var _hasWB = /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(JSON.stringify(p));
-        if (_hasWB) {
-            console.log("[OM] 剔除后仍有标签! msgs:", p.messages?p.messages.length:0, "keys:", Object.keys(p).join(","));
-            if (p.messages) for (var _di=0; _di<p.messages.length; _di++) {
-                var _mc = p.messages[_di].content;
-                var _ms = typeof _mc==="string" ? _mc : Array.isArray(_mc) ? JSON.stringify(_mc).substring(0,200) : String(_mc||"").substring(0,200);
-                if (/<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(_ms)) console.log("[OM]   msg["+_di+"] "+p.messages[_di].role+" 含标签 len="+_ms.length+" preview="+_ms.substring(0,150));
-            }
-        }
+
 
         // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
         var allTextParts = [];
