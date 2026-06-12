@@ -1683,84 +1683,53 @@
     // ── 底栏状态 ─────────────────────────────────────────────
     
         // ?? AI Outfit Generation ?????????????????????
-        function tryGenerateAIDescription(scene, callback) {
+            function tryGenerateAIDescription(scene, callback) {
         var ctx = typeof SillyTavern !== "undefined" && SillyTavern.getContext ? SillyTavern.getContext() : null;
         var genFn = null;
         if (ctx && typeof ctx.generateQuietPrompt === "function") genFn = ctx.generateQuietPrompt.bind(ctx);
         else if (typeof window.generateQuietPrompt === "function") genFn = window.generateQuietPrompt;
         if (!genFn) { callback(null); return; }
+        // Get world book entries as style reference
         var d = load();
         var selectedWBNames = [];
         try { selectedWBNames = getSelectedWorldBookNames(ctx, d); } catch (e) {}
-        // Get world book entries matching scene
-        var modernEntries = [];
-        var lingerieEntries = [];
+        var modernRefs = [];
+        var lingerieRefs = [];
         if (selectedWBNames.length > 0) {
             var allStyles = getWorldBookStyles(selectedWBNames);
-            modernEntries = allStyles.filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
-            lingerieEntries = allStyles.filter(function(ws) { return isLingerieStyle(ws); });
+            modernRefs = allStyles.filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
+            lingerieRefs = allStyles.filter(function(ws) { return isLingerieStyle(ws); });
         }
-        if (modernEntries.length === 0) { callback(null); return; }
         // Build character context
         var charName = "";
         try { if (ctx && ctx.characters && ctx.characterId !== undefined) { var ch = ctx.characters[ctx.characterId]; if (ch) charName = ch.name || ""; } } catch (e) {}
         var userName = ctx ? ctx.name1 || "User" : "User";
-        // Build prompt listing available entries
-        var prompt = "\u5f53\u524d\u573a\u666f\uff1a" + scene;
-        if (charName) prompt += "\n\u89d2\u8272\uff1a" + charName;
-        if (userName) prompt += "\n\u7528\u6237\uff1a" + userName;
-        prompt += "\n\n\u4ee5\u4e0b\u662f\u53ef\u9009\u7684\u7a7f\u642d\u98ce\u683c\uff0c\u8bf7\u6839\u636e\u5f53\u524d\u5bf9\u8bdd\u60c5\u5883\u9009\u62e9\u6700\u5408\u9002\u7684\u4e00\u5957\u3002\n\n";
-        prompt += "\u3010\u5916\u7a7f\u53ef\u9009\u3011\n";
-        modernEntries.forEach(function(entry, i) {
-            prompt += "\n" + (i+1) + ". " + (entry.name || "\u672a\u547d\u540d");
-            if (entry.desc) prompt += " - " + entry.desc.substring(0, 150);
-        });
-        if (lingerieEntries.length > 0) {
-            prompt += "\n\n\u3010\u5185\u8863\u53ef\u9009\u3011\n";
-            lingerieEntries.forEach(function(entry, i) {
-                prompt += "\n" + (i+1) + ". " + (entry.name || "\u672a\u547d\u540d");
-                if (entry.desc) prompt += " - " + entry.desc.substring(0, 100);
-            });
+        // Build system prompt with style references
+        var refText = "";
+        if (modernRefs.length > 0) {
+            refText += "\u5916\u7a7f\u53ef\u53c2\u8003\u7684\u98ce\u683c\uff1a\n";
+            modernRefs.forEach(function(entry, i) { refText += "  " + (entry.name || "") + "\n"; });
         }
-        prompt += "\n\n\u56de\u590d\u683c\u5f0f\uff08\u53ea\u56de\u590d\u98ce\u683c\u540d\u79f0\uff09\uff1a\n\u5916\u7a7f\uff1a[\u98ce\u683c\u540d\u79f0]";
-        if (lingerieEntries.length > 0) prompt += "\n\u5185\u8863\uff1a[\u98ce\u683c\u540d\u79f0]";
-        prompt += "\n\u4e0d\u8981\u89e3\u91ca\uff0c\u53ea\u56de\u590d\u98ce\u683c\u540d\u79f0\u3002";
-        var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u9009\u62e9\u52a9\u624b\u3002\u6839\u636e\u5bf9\u8bdd\u60c5\u5883\u548c\u89d2\u8272\u4eba\u8bbe\uff0c\u4ece\u7ed9\u5b9a\u7684\u7a7f\u642d\u98ce\u683c\u4e2d\u9009\u62e9\u6700\u5408\u9002\u7684\u3002\u53ea\u56de\u590d\u98ce\u683c\u540d\u79f0\uff0c\u4e0d\u8981\u989d\u5916\u8bf4\u660e\u3002";
-        genFn(prompt, { quiet: true, force_name2: false, quiet_prompt: sysPrompt }, function(result) {
-            if (!result || typeof result !== "string" || result.trim().length < 3) { callback(null); return; }
-            // Parse AI response
-            var chosenModern = null;
-            var chosenLingerie = null;
-            var rlines = result.split("\n");
-            for (var li = 0; li < rlines.length; li++) {
-                var l = rlines[li].trim();
-                if (l.indexOf("\u5916\u7a7f") !== -1 || l.indexOf("\u5916\u7a7f") !== -1) {
-                    var parts = l.split(/[:\uff1a]/);
-                    if (parts.length > 1) chosenModern = parts[1].trim();
-                }
-                if (l.indexOf("\u5185\u8863") !== -1 || l.indexOf("\u5185\u8863") !== -1) {
-                    var parts = l.split(/[:\uff1a]/);
-                    if (parts.length > 1) chosenLingerie = parts[1].trim();
-                }
-            }
-            if (!chosenModern) chosenModern = result.trim();
-            function findEntry(entries, name) {
-                if (!name) return null;
-                for (var k = 0; k < entries.length; k++) {
-                    if (entries[k].name && (name.indexOf(entries[k].name) !== -1 || entries[k].name.indexOf(name) !== -1)) return entries[k];
-                }
-                return null;
-            }
+        if (lingerieRefs.length > 0) {
+            refText += "\u5185\u8863\u53ef\u53c2\u8003\u7684\u98ce\u683c\uff1a\n";
+            lingerieRefs.forEach(function(entry, i) { refText += "  " + (entry.name || "") + "\n"; });
+        }
+        if (!refText) { callback(null); return; }
+        var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u52a9\u624b\u3002\u6839\u636e\u5bf9\u8bdd\u4e2d\u7684\u89d2\u8272\u548c\u573a\u666f\uff0c\u751f\u6210\u4e00\u5957\u5b8c\u6574\u7684\u7a7f\u642d\u63cf\u8ff0\u3002\u4ee5\u4e0b\u662f\u53ef\u53c2\u8003\u7684\u98ce\u683c\u8303\u56f4\uff1a\n" + refText + "\u8bf7\u5728\u8fd9\u4e9b\u98ce\u683c\u8303\u56f4\u5185\uff0c\u6839\u636e\u5f53\u524d\u89d2\u8272\u4eba\u8bbe\u548c\u573a\u666f\uff0c\u751f\u6210\u4e00\u5957\u5177\u4f53\u7684\u7a7f\u642d\u63cf\u8ff0\u3002\u53ea\u8f93\u51fa\u7a7f\u642d\u672c\u8eab\uff0c\u4e0d\u8981\u989d\u5916\u89e3\u91ca\u3002";
+        var userPrompt = "\u573a\u666f\uff1a" + scene + "\n\u89d2\u8272\uff1a" + (charName || "\u672a\u77e5") + "\n\u7528\u6237\uff1a" + (userName || "User") + "\n\n\u8bf7\u751f\u6210\u4e00\u5957\u5b8c\u6574\u7684\u7a7f\u642d\u63cf\u8ff0\uff0c\u5305\u542b\u4e0a\u8863\u3001\u4e0b\u88c5\u3001\u914d\u9970\u3001\u978b\u889c\u7b49\u5177\u4f53\u7ec6\u8282\u3002";
+        genFn(userPrompt, { quiet: true, force_name2: false, quiet_prompt: sysPrompt }, function(result) {
+            if (!result || typeof result !== "string" || result.trim().length < 5) { callback(null); return; }
+            var desc = result.trim();
+            // If AI generated lingerie description too, split it
             var outfits = [];
-            var mEntry = findEntry(modernEntries, chosenModern);
-            var lEntry = findEntry(lingerieEntries, chosenLingerie);
-            if (mEntry) outfits.push(createWorldBookOutfit(mEntry, "wb_qs_" + scene + "_modern", 0));
-            if (lEntry) outfits.push(createWorldBookOutfit(lEntry, "wb_qs_" + scene + "_inner", 1));
-            if (outfits.length > 0) { callback(outfits); return; }
-            outfits.push(createWorldBookOutfit(modernEntries[0], "wb_qs_" + scene + "_modern", 0));
+            var lingerieOnly = false;
+            var name = scene + "\u642d\u914d";
+            var outfit = { id: genId(), name: name, category: "\u4e16\u754c\u4e66", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
+            outfits.push(outfit);
             callback(outfits);
         }, function(err) { callback(null); });
     }
+
 
 
 function renderQuickScenes(d) {
