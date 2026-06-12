@@ -3415,9 +3415,9 @@
             }
         }
 
-        if (owners.length === 0) { console.log("[OM] 无激活穿搭，跳过剔除"); return null; }
+        if (owners.length === 0) return null;
         // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
-        stripWorldBookEntries(p); console.log("[OM] 剔除后 含世界书标签:", /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(JSON.stringify(p)) ? "是(剔除失败!)" : "否(剔除成功)");
+        stripWorldBookEntries(p);
 
         // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
         var allTextParts = [];
@@ -3485,7 +3485,7 @@
             toast('👗 ' + summary + ' [' + d.mode + '|' + pos + ']');
         }
 
-        var finalStr = JSON.stringify(p); console.log("[OM] 实际发送 prompt 长度:", finalStr.length, "| 含世界书标签:", /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(finalStr) ? "是" : "否"); return finalStr;
+        var finalStr = JSON.stringify(p); return finalStr;
     }
 
     // ── 侧栏按钮 ──────────────────────────────────────────────
