@@ -1683,13 +1683,13 @@
     // ── 底栏状态 ─────────────────────────────────────────────
     
         // ?? AI Outfit Generation ?????????????????????
-            function tryGenerateAIDescription(scene, callback) {
+                function tryGenerateAIDescription(scene, callback) {
         var ctx = typeof SillyTavern !== "undefined" && SillyTavern.getContext ? SillyTavern.getContext() : null;
         var genFn = null;
         if (ctx && typeof ctx.generateQuietPrompt === "function") genFn = ctx.generateQuietPrompt.bind(ctx);
         else if (typeof window.generateQuietPrompt === "function") genFn = window.generateQuietPrompt;
         if (!genFn) { callback(null); return; }
-        // Get world book entries as style reference
+        // Get world book entries for this scene
         var d = load();
         var selectedWBNames = [];
         try { selectedWBNames = getSelectedWorldBookNames(ctx, d); } catch (e) {}
@@ -1700,35 +1700,34 @@
             modernRefs = allStyles.filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
             lingerieRefs = allStyles.filter(function(ws) { return isLingerieStyle(ws); });
         }
-        // Build character context
-        var charName = "";
-        try { if (ctx && ctx.characters && ctx.characterId !== undefined) { var ch = ctx.characters[ctx.characterId]; if (ch) charName = ch.name || ""; } } catch (e) {}
-        var userName = ctx ? ctx.name1 || "User" : "User";
-        // Build system prompt with style references
-        var refText = "";
+        // Build style guide text from world book raw content
+        var styleGuide = "";
         if (modernRefs.length > 0) {
-            refText += "\u5916\u7a7f\u53ef\u53c2\u8003\u7684\u98ce\u683c\uff1a\n";
-            modernRefs.forEach(function(entry, i) { refText += "  " + (entry.name || "") + "\n"; });
+            styleGuide += "?\u5916\u7a7f\u53c2\u8003\u98ce\u683c\u6307\u5bfc?\n";
+            modernRefs.forEach(function(entry) {
+                var raw = entry.raw || entry.desc || "";
+                styleGuide += raw + "\n";
+            });
         }
         if (lingerieRefs.length > 0) {
-            refText += "\u5185\u8863\u53ef\u53c2\u8003\u7684\u98ce\u683c\uff1a\n";
-            lingerieRefs.forEach(function(entry, i) { refText += "  " + (entry.name || "") + "\n"; });
+            styleGuide += "\n?\u5185\u8863\u53c2\u8003\u98ce\u683c\u6307\u5bfc?\n";
+            lingerieRefs.forEach(function(entry) {
+                var raw = entry.raw || entry.desc || "";
+                styleGuide += raw + "\n";
+            });
         }
-        if (!refText) { callback(null); return; }
-        var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u52a9\u624b\u3002\u6839\u636e\u5bf9\u8bdd\u4e2d\u7684\u89d2\u8272\u548c\u573a\u666f\uff0c\u751f\u6210\u4e00\u5957\u5b8c\u6574\u7684\u7a7f\u642d\u63cf\u8ff0\u3002\u4ee5\u4e0b\u662f\u53ef\u53c2\u8003\u7684\u98ce\u683c\u8303\u56f4\uff1a\n" + refText + "\u8bf7\u5728\u8fd9\u4e9b\u98ce\u683c\u8303\u56f4\u5185\uff0c\u6839\u636e\u5f53\u524d\u89d2\u8272\u4eba\u8bbe\u548c\u573a\u666f\uff0c\u751f\u6210\u4e00\u5957\u5177\u4f53\u7684\u7a7f\u642d\u63cf\u8ff0\u3002\u53ea\u8f93\u51fa\u7a7f\u642d\u672c\u8eab\uff0c\u4e0d\u8981\u989d\u5916\u89e3\u91ca\u3002";
-        var userPrompt = "\u573a\u666f\uff1a" + scene + "\n\u89d2\u8272\uff1a" + (charName || "\u672a\u77e5") + "\n\u7528\u6237\uff1a" + (userName || "User") + "\n\n\u8bf7\u751f\u6210\u4e00\u5957\u5b8c\u6574\u7684\u7a7f\u642d\u63cf\u8ff0\uff0c\u5305\u542b\u4e0a\u8863\u3001\u4e0b\u88c5\u3001\u914d\u9970\u3001\u978b\u889c\u7b49\u5177\u4f53\u7ec6\u8282\u3002";
+        if (!styleGuide) { callback(null); return; }
+        // System prompt
+        var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u52a9\u624b\u3002\u4ee5\u4e0b\u662f\u53ef\u53c2\u8003\u7684\u7a7f\u642d\u98ce\u683c\u6307\u5bfc\uff1a\n" + styleGuide + "\n\u5fc5\u987b\u9075\u5faa\u4ee5\u4e0b\u89c4\u5219\uff1a\n- \u8981\u6839\u636e\u6b63\u6587\u4ee5\u53ca\u524d\u6587\u6545\u4e8b\u60c5\u8282\u5224\u65ad\u6b64\u65f6user\u662f\u5426\u9700\u8981\u66f4\u6362\u670d\u9970\u3002\n- \u6839\u636euser\u7684\u6027\u683c\u4eba\u8bbe\uff0c\u968f\u673a\u751f\u6210user\u7684\u7a7f\u642d\u670d\u9970\uff0c\u9700\u9075\u5faa\u5404\u4e2a\u98ce\u683c\u7684\u7a7f\u642d\u6307\u5bfc\uff0c\u5e76\u7b26\u5408\u5f53\u524d\u4eba\u7269\u6240\u5904\u7684\u60c5\u5883\uff0c\u5b63\u8282\uff08\u51ac\u79cb\u5b63\u65f6\u9700\u8981\u5728\u539f\u6765\u7684\u57fa\u7840\u4e0a\u589e\u8863\u4fdd\u6696\uff0c\u6625\u590f\u5b63\u9700\u4fdd\u6301\u6e05\u51c9\uff09\uff0c\u804c\u4e1a\uff08\u907f\u514d\u51fa\u73b0\u5728\u5de5\u4f5c\u65f6\u7a7f\u7740\u4e0d\u5f53\u7684\u60c5\u51b5\uff09\u548c\u559c\u597d\uff0c\u907f\u514dooc\u3002\u53d1\u6325\u60f3\u8c61\u5373\u53ef\uff0c\u7a7f\u642d\u98ce\u683c\u5747\u4e0d\u9650\u3002\n- \u4e25\u7981\u7167\u6284\u4f8b\u5b50\uff0c\u4f8b\u5b50\u4ec5\u4f9b\u7a7f\u642d\u53c2\u8003\u3002\n\u53ea\u8f93\u51fa\u7a7f\u642d\u63cf\u8ff0\u672c\u8eab\uff0c\u4e0d\u8981\u989d\u5916\u8bf4\u660e\u3002";
+        var userPrompt = "\u573a\u666f\uff1a" + scene + "\n\u8bf7\u6839\u636e\u4e0a\u8ff0\u89c4\u5219\u751f\u6210user\u7684\u7a7f\u642d\u3002";
         genFn(userPrompt, { quiet: true, force_name2: false, quiet_prompt: sysPrompt }, function(result) {
             if (!result || typeof result !== "string" || result.trim().length < 5) { callback(null); return; }
             var desc = result.trim();
-            // If AI generated lingerie description too, split it
-            var outfits = [];
-            var lingerieOnly = false;
-            var name = scene + "\u642d\u914d";
-            var outfit = { id: genId(), name: name, category: "\u4e16\u754c\u4e66", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
-            outfits.push(outfit);
-            callback(outfits);
+            var outfit = { id: genId(), name: scene + "\u642d\u914d", category: "\u4e16\u754c\u4e66", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
+            callback([outfit]);
         }, function(err) { callback(null); });
     }
+
 
 
 
