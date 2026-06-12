@@ -1859,7 +1859,7 @@
             html += '<div class="om-detail-title" style="margin-top:4px">' + esc(g.owner) + '</div>';
             html += '<div class="om-detail-tags">';
             g.items.forEach(function (w) {
-                html += '<span class="om-detail-tag">' + esc(w.name) +
+                html += '<span class="om-detail-tag" data-id="' + w.id + '">' + esc(w.name) +
                     '<button class="om-detail-tag-x" data-id="' + w.id + '">&#x2715;</button></span>';
             });
             html += '</div>';
@@ -1876,6 +1876,29 @@
                 save(dd); updateBtn(); renderBottomStatus(); renderGrid();
                 closeDetailPanel();
             });
+        // 点击标签弹出可编辑框
+        panel.querySelectorAll('.om-detail-tag').forEach(function (tag) {
+            tag.addEventListener('click', function (e) {
+                if (e.target.closest('.om-detail-tag-x')) return;
+                var id = tag.dataset.id;
+                var dd = load(); var o = getById(dd, id); if (!o) return;
+                closeDetailPanel();
+                var modal = document.createElement('div'); modal.className = 'om-modal';
+                var bg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
+                modal.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bg + ';color:' + fg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-pen-to-square"></i> ' + esc('编辑：' + o.name) + '</div>' +
+                    '<textarea id="om-edit-desc" style="width:100%;min-height:180px;margin-top:12px;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.3);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;color:' + fg + ';resize:vertical;font-family:inherit">' + (o.description || '') + '</textarea>' +
+                    '<div class="om-btn-row" style="margin-top:12px;gap:10px"><button class="om-btn om-btn-safe" id="om-edit-save"><i class="fa-solid fa-check"></i> 保存</button><button class="om-btn om-btn-outline" id="om-edit-close">关闭</button></div></div>';
+                var mp = getPopupLayer(); modal.style.cssText = 'position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
+                mp.appendChild(modal);
+                modal.addEventListener('click', function(ev) { if (ev.target === modal) mp.removeChild(modal); });
+                modal.querySelector('#om-edit-save').addEventListener('click', function() {
+                    var newDesc = modal.querySelector('#om-edit-desc').value;
+                    var dd2 = load(); var o2 = getById(dd2, id); if (o2) { o2.description = newDesc; save(dd2); renderGrid(); updateBtn(); }
+                    mp.removeChild(modal); toast('穿搭描述已更新');
+                });
+                modal.querySelector('#om-edit-close').addEventListener('click', function() { mp.removeChild(modal); });
+            });
+        });
         });
         // 点击底栏外关闭
         setTimeout(function () {
