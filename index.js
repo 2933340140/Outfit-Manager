@@ -3415,7 +3415,7 @@
             }
         }
 
-        if (owners.length === 0) return null;
+        if (owners.length === 0) { console.log("[OM] 无激活穿搭，跳过剔除"); return null; }
         // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
         stripWorldBookEntries(p);
 
