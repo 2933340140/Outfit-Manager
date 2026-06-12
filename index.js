@@ -1761,6 +1761,10 @@
         if (chatCtx) userPrompt += "\n当前对话上下文：\n" + chatCtx + "\n";
         userPrompt += "\n请根据上述规则生成user的穿搭。";
         
+        console.log("[OM-AI] ===== SYSTEM PROMPT =====");
+        console.log(sysPrompt);
+        console.log("[OM-AI] ===== USER PROMPT =====");
+        console.log(userPrompt);
         console.log("[OM-AI] calling generateRaw, prompt len=" + (sysPrompt.length + userPrompt.length));
         
         var done = false;
