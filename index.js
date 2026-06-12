@@ -1748,7 +1748,7 @@
                     dd.activeIds = [];
                     if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
                     outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
-                    save(dd); var _test = load(); var _aid = dd.activeIds[0]; var _vo = _test.virtualOutfits && _test.virtualOutfits[_aid]; console.log("[OM] 保存后验证 desc长度:", _vo ? _vo.description.length : "无", "| 前80字:", _vo ? _vo.description.substring(0,80) : "N/A"); renderGrid(); renderBottomStatus(); updateBtn(); toast("已换上 " + outfits.length + " 套（" + scene + "）");
+                    save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast("已换上 " + outfits.length + " 套（" + scene + "）");
                 };
                 var modal2 = document.createElement('div'); modal2.className = 'om-modal';
                 var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
@@ -1891,9 +1891,9 @@
                     '<div class="om-btn-row" style="margin-top:12px;gap:10px"><button class="om-btn om-btn-safe" id="om-edit-save"><i class="fa-solid fa-check"></i> 确认</button><button class="om-btn" id="om-edit-wardrobe" style="background:var(--SmartThemeQuoteColor,#7c6daf);color:#fff"><i class="fa-solid fa-box"></i> 保存到衣橱</button><button class="om-btn om-btn-outline" id="om-edit-close">关闭</button></div></div>';
                 var mp = getPopupLayer(); modal.style.cssText = 'position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
                 mp.appendChild(modal);
-                modal.addEventListener('click', function(ev) { if (ev.target === modal) mp.removeChild(modal); });
-                modal.querySelector('#om-edit-save').addEventListener('click', function() {                     var newDesc = modal.querySelector('#om-edit-desc').value;                     console.log('[OM-edit] textarea长度:', newDesc.length, '前60:', newDesc.substring(0,60));                     var dd2 = load(); var o2 = getById(dd2, id);                     console.log('[OM-edit] 查找id:', id, '结果:', o2?'找到':'未找到!', '原desc长度:', o2?o2.description.length:'N/A');                     if (o2) { o2.description = newDesc; save(dd2);                         var ck = load(); var c2 = getById(ck, id);                         console.log('[OM-edit] 保存后 desc长度:', c2?c2.description.length:'N/A', '前60:', c2?c2.description.substring(0,60):'N/A');                         renderGrid(); renderBottomStatus(); updateBtn(); }                     mp.removeChild(modal); toast('穿搭描述已更新');                 });
-                modal.querySelector('#om-edit-close').addEventListener('click', function() { mp.removeChild(modal); });
+                modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
+                modal.querySelector('#om-edit-save').addEventListener('click', function(e) {                     e.stopPropagation();                     var newDesc = modal.querySelector('#om-edit-desc').value;                     var dd2 = load(); var o2 = getById(dd2, id);                     if (o2) { o2.description = newDesc; save(dd2); }                     modal.remove();                     if (o2) { renderGrid(); renderBottomStatus(); updateBtn(); }                     toast('穿搭描述已更新');                 });
+                modal.querySelector('#om-edit-close').addEventListener('click', function() { modal.remove(); });
                 modal.querySelector('#om-edit-wardrobe').addEventListener('click', function() {                     var newDesc = modal.querySelector('#om-edit-desc').value;                     var dd2 = load(); var o2 = getById(dd2, id);                     if (o2) {                         var saved = { id: genId(), name: o2.name, category: '世界书', type: 'outfit', style: o2.style || '', season: o2.season || '', sceneTag: o2.sceneTag || '', description: newDesc, imageData: o2.imageData || null, createdAt: Date.now() };                         dd2.outfits.push(saved);                         save(dd2); renderGrid(); updateBtn();                     }                     mp.removeChild(modal); toast('已保存到衣橱');                 });
             });
         });
@@ -3565,7 +3565,7 @@
     setInterval(function () { if (!document.getElementById(FAB_ID)) injectFab(); }, 3000);
 
     loadFromDB(function (d) {
-        console.log("[OM] v21 已加载 - 世界书自动剔除已启用");
+        // OM v21 loaded
         var finishStartup = function () {
             dataCache = d;
             if (d.useMainApi !== false) autoDetectApiConfig(d);
