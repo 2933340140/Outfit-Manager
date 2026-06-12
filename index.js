@@ -1768,7 +1768,7 @@
             if (!done) { done = true; console.log("[OM-AI] TIMEOUT 30s, fallback"); callback(null); }
         }, 30000);
         
-        genFn({ prompt: userPrompt, systemPrompt: sysPrompt, quietToLoud: false, responseLength: 600 }).then(function(result) {
+        genFn({ prompt: userPrompt, systemPrompt: sysPrompt, quietToLoud: false, responseLength: 1200 }).then(function(result) {
             if (done) return; done = true; clearTimeout(tid);
             console.log("[OM-AI] generateRaw resolved, result len=" + (result ? result.length : 0));
             if (!result || typeof result !== "string" || result.trim().length < 5) { console.log("[OM-AI] result too short, fallback"); callback(null); return; }
