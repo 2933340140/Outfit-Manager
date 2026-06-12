@@ -3417,7 +3417,7 @@
 
         if (owners.length === 0) { console.log("[OM] 无激活穿搭，跳过剔除"); return null; }
         // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
-        stripWorldBookEntries(p);
+        stripWorldBookEntries(p); console.log("[OM] 剔除后 含世界书标签:", /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(JSON.stringify(p)) ? "是(剔除失败!)" : "否(剔除成功)");
 
         // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
         var allTextParts = [];
