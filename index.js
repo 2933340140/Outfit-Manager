@@ -1687,6 +1687,19 @@
         return /内衣/.test(String((ws && ws.source) || '')) || /内衣|文胸|内裤|抹胸|蕾丝性感|法式三角杯|聚拢|丝绸奢华|基础纯棉|少女可爱/.test(String((ws && ws.name) || ''));
     }
 
+    function _cleanStoryText(text) {
+        return String(text || '')
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/\.[\w-]+\s*\{[\s\S]*?\}/g, '')
+            .replace(/#[\w-]+\s*\{[\s\S]*?\}/g, '')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\{\{[\s\S]*?\}\}/g, '')
+            .replace(/^\s*(?:text-align|font-size|font-weight|margin|letter-spacing|white-space|opacity|display|color|background|padding|border|width|height|line-height|position)\s*:[^;\n]+;?\s*$/gmi, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
     function _getChatContext(ctx) {
         var chat = ctx && ctx.chat ? ctx.chat : [];
         var recent = chat.slice(-15);
@@ -1694,11 +1707,20 @@
         for (var i = 0; i < recent.length; i++) {
             var msg = recent[i];
             var role = msg && msg.is_user ? "用户" : (msg && msg.name ? msg.name : "角色");
-            var text = msg && msg.mes ? String(msg.mes).replace(/<[^>]+>/g, '').trim() : '';
-            if (text.length > 300) text = text.slice(0, 300) + '...';
+            var text = msg && msg.mes ? _cleanStoryText(msg.mes) : '';
+            if (text.length > 800) text = text.slice(0, 800) + '...';
             if (text) lines.push(role + "：" + text);
         }
         return lines.join("\n");
+    }
+
+    function _getPendingUserInput() {
+        try {
+            var input = document.querySelector('#send_textarea');
+            return input ? _cleanStoryText(input.value) : '';
+        } catch (e) {
+            return '';
+        }
     }
 
     function _getCharacterInfo(ctx) {
@@ -1757,9 +1779,11 @@
         
         // User prompt: style guide section + context section
         var charInfo = _getCharacterInfo(ctx);
+        var pendingInput = _getPendingUserInput();
         var chatCtx = _getChatContext(ctx);
         var userPrompt = "=========穿搭风格指导=========\n" + styleGuide + "\n";
         userPrompt += "=========当前正文和故事情节=========\n";
+        if (pendingInput) userPrompt += "当前用户输入：\n" + pendingInput + "\n";
         if (charInfo) userPrompt += charInfo + "\n";
         if (chatCtx) userPrompt += chatCtx + "\n";
         userPrompt += "\n场景：" + scene + "\n请根据上述规则生成user的穿搭。";
