@@ -1681,7 +1681,33 @@
     }
 
     // ── 底栏状态 ─────────────────────────────────────────────
-    function renderQuickScenes(d) {
+    
+        // ?? AI Outfit Generation ?????????????????????
+    function tryGenerateAIDescription(scene, callback) {
+        var ctx = typeof SillyTavern !== "undefined" && SillyTavern.getContext ? SillyTavern.getContext() : null;
+        // Try SillyTavern built-in generateQuietPrompt
+        var genFn = null;
+        if (ctx && typeof ctx.generateQuietPrompt === "function") genFn = ctx.generateQuietPrompt.bind(ctx);
+        else if (typeof window.generateQuietPrompt === "function") genFn = window.generateQuietPrompt;
+        if (!genFn) { callback(null); return; }
+        var charName = "";
+        try {
+            if (ctx && ctx.characters && ctx.characterId !== undefined) {
+                var ch = ctx.characters[ctx.characterId];
+                if (ch) charName = ch.name || "";
+            }
+        } catch (e) {}
+        var userName = ctx ? ctx.name1 || "User" : "User";
+        var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u52a9\u624b\u3002\u6839\u636e\u7528\u6237\u5f53\u524d\u7684\u89d2\u8272\u548c\u4eba\u8bbe\u573a\u666f\uff0c\u751f\u6210\u4e00\u5957\u5b8c\u6574\u7684\u7a7f\u642d\u63cf\u8ff0\u3002\u53ea\u8f93\u51fa\u7a7f\u642d\u672c\u8eab\uff0c\u4e0d\u8981\u989d\u5916\u8bf4\u660e\u6216\u8bc4\u4ef7\u3002\n\n\u683c\u5f0f\u8981\u6c42\uff08\u6bcf\u884c\u4e00\u4e2a\uff09\uff1a\n\u4e0a\u8863\uff1a[\u6b3e\u5f0f\u3001\u989c\u8272\u3001\u6750\u8d28\u7b49\u7ec6\u8282\u63cf\u8ff0]\n\u4e0b\u88c5\uff1a[\u6b3e\u5f0f\u3001\u989c\u8272\u7b49\u7ec6\u8282\u63cf\u8ff0]\n\u914d\u9970\uff1a[\u5177\u4f53\u63cf\u8ff0]\n\u978b\u889c\uff1a[\u5177\u4f53\u63cf\u8ff0]"
+        var userPrompt = "\u573a\u666f\uff1a" + scene + "\n\u89d2\u8272\uff1a" + (charName || "\u672a\u77e5") + "\n\u7528\u6237\uff1a" + userName + "\n\n\u8bf7\u751f\u6210\u4e00\u5957\u9002\u5408\u5f53\u524d\u573a\u666f\u7684\u7a7f\u642d\u3002"
+        genFn(userPrompt, { quiet: true, force_name2: false, quiet_prompt: sysPrompt }, function (result) {
+            if (!result || typeof result !== "string" || result.trim().length < 10) { callback(null); return; }
+            var outfit = { id: genId(), name: scene + "\u642d\u914d", category: "\u4e16\u754c\u4e66", type: "outfit", description: result.trim(), style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
+            callback([outfit]);
+        }, function (err) { callback(null); });
+    }
+
+function renderQuickScenes(d) {
         var el = document.getElementById('om-quick-scenes');
         if (!el) return;
         el.innerHTML = '<span class="om-quick-title">场景</span><div class="om-quick-panel"><span style="font-size:.76em;opacity:.62;white-space:nowrap">加载中</span></div>';
@@ -1733,38 +1759,66 @@
         el.querySelectorAll('.om-quick-scene-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var scene = this.dataset.scene;
-                var outfits = [];
-                var modernPool = modernMatches(scene);
-                var lingeriePool = lingerieMatches(scene);
-                if (modernPool.length > 0) outfits.push(createWorldBookOutfit(modernPool[Math.floor(Math.random() * modernPool.length)], 'wb_qs_' + scene + '_modern', 0));
-                if (lingeriePool.length > 0) outfits.push(createWorldBookOutfit(lingeriePool[Math.floor(Math.random() * lingeriePool.length)], 'wb_qs_' + scene + '_inner', 1));
-                var confirmPick = function() {
-                    var textareas = modal2.querySelectorAll('.om-roll-desc');
-                    textareas.forEach(function(ta) {
-                        var i = parseInt(ta.dataset.idx);
-                        if (i >= 0 && i < outfits.length) outfits[i].description = ta.value;
-                    });
-                    var dd = load();
-                    dd.activeIds = [];
-                    if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
-                    outfits.forEach(function (picked) { var realId = genId(); picked.id = realId; dd.virtualOutfits[realId] = picked; dd.activeIds.push(realId); });
-                    save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast("已换上 " + outfits.length + " 套（" + scene + "）");
-                };
-                var modal2 = document.createElement('div'); modal2.className = 'om-modal';
-                var bgg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fgg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
-                var bodyHtml = outfits.map(function (o, idx) {
-                    var label = isLingerieStyle(o) ? '内衣' : '外穿';
-                    return '<div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:6px">' + label + '：' + esc(o.name) + '</div>' +
-                        '<textarea class="om-roll-desc" data-idx="' + idx + '" style="width:100%;min-height:100px;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.3);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;color:' + fgg + ';resize:vertical;font-family:inherit">' + (o.description || '') + '</textarea></div>';
-                }).join('');
-                modal2.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bgg + ';color:' + fgg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-shirt"></i> ' + esc(scene) + '搭配结果</div>' +
-                    '<div style="max-height:360px;overflow-y:auto;margin-top:12px">' + bodyHtml + '</div>' +
-                    '<div class="om-btn-row" style="margin-top:12px;gap:10px"><button class="om-btn om-btn-safe" id="om-desc-confirm"><i class="fa-solid fa-check"></i> 确认</button><button class="om-btn" id="om-desc-wardrobe" style="background:var(--SmartThemeQuoteColor,#7c6daf);color:#fff"><i class="fa-solid fa-box"></i> 保存到衣橱</button><button class="om-btn om-btn-outline" id="om-desc-close">关闭</button></div></div>';
-                var mp2 = getPopupLayer(); modal2.style.cssText = 'position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;';
-                mp2.appendChild(modal2); modal2.addEventListener('click', function(e) { if (e.target === modal2) mp2.removeChild(modal2); });
-                modal2.querySelector('#om-desc-confirm').addEventListener('click', function() { confirmPick(); mp2.removeChild(modal2); });
-                modal2.querySelector('#om-desc-close').addEventListener('click', function() { mp2.removeChild(modal2); });
-                modal2.querySelector('#om-desc-wardrobe').addEventListener('click', function() { var dd3 = load(); outfits.forEach(function(picked) { var realId = genId(); picked.id = realId; var saved = { id: genId(), name: picked.name, category: '世界书', type: 'outfit', style: picked.style || '', season: picked.season || '', sceneTag: picked.sceneTag || '', description: modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(picked) + '"]') ? modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(picked) + '"]').value : (picked.description || ''), imageData: null, createdAt: Date.now() }; dd3.outfits.push(saved); }); save(dd3); renderGrid(); updateBtn(); mp2.removeChild(modal2); toast('已保存到衣橱'); });
+                // Create modal with loading state first
+                var modal2 = document.createElement("div"); modal2.className = "om-modal";
+                var bgg = typeof darkMode !== "undefined" && darkMode ? "#1e1e24" : "#ececef"; var fgg = typeof darkMode !== "undefined" && darkMode ? "#eee" : "#111";
+                modal2.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bgg + ';color:' + fgg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-shirt"></i> ' + esc(scene) + '</div><div id="om-roll-progress" style="padding:30px 0;text-align:center;opacity:.7"><i class="fa-solid fa-spinner fa-spin" style="margin-right:8px"></i>AI \u751f\u6210\u4e2d...</div><div class="om-btn-row" style="margin-top:12px;gap:10px" id="om-roll-actions"><button class="om-btn om-btn-outline" id="om-roll-close">\u5173\u95ed</button></div></div>';
+                var mp2 = getPopupLayer(); modal2.style.cssText = "position:absolute !important;inset:0 !important;z-index:2 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:20px !important;box-sizing:border-box !important;pointer-events:auto !important;";
+                mp2.appendChild(modal2);
+                modal2.querySelector("#om-roll-close").addEventListener("click", function() { mp2.removeChild(modal2); });
+                modal2.addEventListener("click", function(e) { if (e.target === modal2) mp2.removeChild(modal2); });
+                // Helper to populate modal with outfits
+                function showOutfits(sc, outfits) {
+                    var bodyHtml = outfits.length === 0
+                        ? '<div style="padding:20px;text-align:center;opacity:.6">\u6ca1\u6709\u53ef\u7528\u7684\u7a7f\u642d</div>'
+                        : outfits.map(function (o, idx) {
+                            var label = isLingerieStyle(o) ? "\u5185\u8863" : "\u5916\u7a7f";
+                            return '<div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:6px">' + label + "\uff1a" + esc(o.name) + '</div><textarea class="om-roll-desc" data-idx="' + idx + '" style="width:100%;min-height:100px;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.3);border-radius:10px;padding:12px;font-size:.9em;line-height:1.75;color:' + fgg + ';resize:vertical;font-family:inherit">' + (o.description || "") + '</textarea></div>';
+                        }).join("");
+                    var titleEl = modal2.querySelector(".om-modal-title");
+                    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-shirt"></i> ' + esc(sc) + "\u642d\u914d\u7ed3\u679c";
+                    var progEl = document.getElementById("om-roll-progress");
+                    if (progEl) progEl.outerHTML = '<div style="max-height:360px;overflow-y:auto;margin-top:12px">' + bodyHtml + '</div>';
+                    // Add action buttons
+                    var acts = document.getElementById("om-roll-actions");
+                    if (acts) {
+                        acts.innerHTML = '<button class="om-btn om-btn-safe" id="om-roll-confirm"><i class="fa-solid fa-check"></i> \u786e\u8ba4</button><button class="om-btn" id="om-roll-wardrobe" style="background:var(--SmartThemeQuoteColor,#7c6daf);color:#fff"><i class="fa-solid fa-box"></i> \u4fdd\u5b58\u5230\u8863\u6a71</button><button class="om-btn om-btn-outline" id="om-roll-close2">\u5173\u95ed</button>';
+                        modal2.querySelector("#om-roll-confirm").addEventListener("click", function() {
+                            var textareas = modal2.querySelectorAll(".om-roll-desc");
+                            textareas.forEach(function(ta) {
+                                var i = parseInt(ta.dataset.idx);
+                                if (i >= 0 && i < outfits.length) outfits[i].description = ta.value;
+                            });
+                            var dd = load(); dd.activeIds = [];
+                            if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = [];
+                            outfits.forEach(function (p) { var rid = genId(); p.id = rid; dd.virtualOutfits[rid] = p; dd.activeIds.push(rid); });
+                            save(dd); renderGrid(); renderBottomStatus(); updateBtn(); toast("\u5df2\u6362\u4e0a " + outfits.length + " \u5957\uff08" + sc + "\uff09");
+                            mp2.removeChild(modal2);
+                        });
+                        modal2.querySelector("#om-roll-wardrobe").addEventListener("click", function() {
+                            var dd3 = load();
+                            outfits.forEach(function(p) {
+                                var saved = { id: genId(), name: p.name, category: "\u4e16\u754c\u4e66", type: "outfit", style: p.style || "", season: p.season || "", sceneTag: p.sceneTag || "", description: modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]') ? modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]').value : (p.description || ""), imageData: null, createdAt: Date.now() };
+                                dd3.outfits.push(saved);
+                            });
+                            save(dd3); renderGrid(); updateBtn(); mp2.removeChild(modal2); toast("\u5df2\u4fdd\u5b58\u5230\u8863\u6a71");
+                        });
+                        modal2.querySelector("#om-roll-close2").addEventListener("click", function() { mp2.removeChild(modal2); });
+                    }
+                }
+                // Try AI generation, fallback to world book
+                tryGenerateAIDescription(scene, function(aiOutfits) {
+                    var outfits = [];
+                    if (aiOutfits && aiOutfits.length > 0) {
+                        outfits = aiOutfits;
+                    } else {
+                        var modernPool = modernMatches(scene);
+                        var lingeriePool = lingerieMatches(scene);
+                        if (modernPool.length > 0) outfits.push(createWorldBookOutfit(modernPool[Math.floor(Math.random() * modernPool.length)], "wb_qs_" + scene + "_modern", 0));
+                        if (lingeriePool.length > 0) outfits.push(createWorldBookOutfit(lingeriePool[Math.floor(Math.random() * lingeriePool.length)], "wb_qs_" + scene + "_inner", 1));
+                    }
+                    showOutfits(scene, outfits);
+                });
             });
         });
     }
