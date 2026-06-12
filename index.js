@@ -1683,18 +1683,46 @@
     // ── 底栏状态 ─────────────────────────────────────────────
     
         // ?? AI Outfit Generation ?????????????????????
-    function _isLingerieStyle(ws) {
+        function _isLingerieStyle(ws) {
         return /内衣/.test(String((ws && ws.source) || '')) || /内衣|文胸|内裤|抹胸|蕾丝性感|法式三角杯|聚拢|丝绸奢华|基础纯棉|少女可爱/.test(String((ws && ws.name) || ''));
+    }
+
+    function _getChatContext(ctx) {
+        var chat = ctx && ctx.chat ? ctx.chat : [];
+        var recent = chat.slice(-15);
+        var lines = [];
+        for (var i = 0; i < recent.length; i++) {
+            var msg = recent[i];
+            var role = msg && msg.is_user ? "用户" : (msg && msg.name ? msg.name : "角色");
+            var text = msg && msg.mes ? String(msg.mes).replace(/<[^>]+>/g, '').trim() : '';
+            if (text.length > 300) text = text.slice(0, 300) + '...';
+            if (text) lines.push(role + "：" + text);
+        }
+        return lines.join("\n");
+    }
+
+    function _getCharacterInfo(ctx) {
+        try {
+            var chId = ctx && ctx.this_chid;
+            var chars = ctx && ctx.characters;
+            if (chars && chId !== undefined && chId !== null && chars[chId]) {
+                var c = chars[chId];
+                return "角色名：" + (c.name || '') + "\n角色描述：" + (c.description || '').slice(0, 200);
+            }
+        } catch(e) {}
+        return "";
+    }
+
+    function _getApiConfig() {
+        var d = load();
+        autoDetectApiConfig(d);
+        return { endpoint: d.apiVision.endpoint, key: d.apiVision.key, model: d.apiVision.model };
     }
 
                 function tryGenerateAIDescription(scene, callback) {
         console.log("[OM-AI] tryGenerateAIDescription start, scene:", scene);
         var ctx = typeof SillyTavern !== "undefined" && SillyTavern.getContext ? SillyTavern.getContext() : null;
-        var genFn = null;
-        if (ctx && typeof ctx.generateQuietPrompt === "function") genFn = ctx.generateQuietPrompt;
-        if (!genFn) { console.log("[OM-AI] genFn not found, fallback"); callback(null); return; }
-        console.log("[OM-AI] genFn OK, loading world books...");
-        // Get world book entries for this scene
+        
         var d = load();
         var selectedWBNames = [];
         try { selectedWBNames = getSelectedWorldBookNames(ctx, d); } catch (e) {}
@@ -1707,7 +1735,7 @@
             lingerieRefs = allStyles.filter(function(ws) { return _isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
         }
         console.log("[OM-AI] styles filtered: modern=" + modernRefs.length + ", lingerie=" + lingerieRefs.length);
-        // Build style guide text from world book raw content
+        
         var styleGuide = "";
         if (modernRefs.length > 0) {
             styleGuide += "【外穿参考风格指导】\n"
@@ -1725,36 +1753,56 @@
         }
         if (!styleGuide) { console.log("[OM-AI] styleGuide empty, fallback"); callback(null); return; }
         console.log("[OM-AI] styleGuide built, len=" + styleGuide.length);
-        // System prompt
+        
+        var apiCfg = _getApiConfig();
+        if (!apiCfg.endpoint || !apiCfg.key || !apiCfg.model) {
+            console.log("[OM-AI] API not configured, fallback");
+            callback(null); return;
+        }
+        console.log("[OM-AI] API OK, model:", apiCfg.model);
+        
         var sysPrompt = "你是一个穿搭助手。以下是可参考的穿搭风格指导：\n" + styleGuide + "\n必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n只输出穿搭描述本身，不要额外说明。";
-        var userPrompt = "场景：" + scene + "\n请根据上述规则生成user的穿搭。";
-                // New ST API: merge system prompt into quietPrompt
-        var fullPrompt = sysPrompt + "\n\n---\n\n" + userPrompt;
-        console.log("[OM-AI] calling genFn, prompt len=" + fullPrompt.length);
-        var genPromise = genFn({ quietPrompt: fullPrompt, quietToLoud: false });
-        console.log("[OM-AI] genFn returned:", typeof genPromise, "hasThen:", !!(genPromise && genPromise.then));
-        if (!genPromise || typeof genPromise.then !== "function") { console.log("[OM-AI] genPromise invalid, fallback"); callback(null); return; }
-        // 30s timeout safety net
-        var _done = false;
-        var _tid = setTimeout(function() {
-            if (!_done) { _done = true; console.log("[OM-AI] TIMEOUT after 30s, fallback"); callback(null); }
-        }, 30000);
-        genPromise.then(function(result) {
-            if (_done) return; _done = true; clearTimeout(_tid);
-            console.log("[OM-AI] genFn resolved, result len=" + (result ? result.length : 0));
-            if (!result || typeof result !== "string" || result.trim().length < 5) { console.log("[OM-AI] result too short, fallback"); callback(null); return; }
-            var desc = result.trim();
+        
+        var charInfo = _getCharacterInfo(ctx);
+        var chatCtx = _getChatContext(ctx);
+        var userPrompt = "场景：" + scene + "\n";
+        if (charInfo) userPrompt += charInfo + "\n";
+        if (chatCtx) userPrompt += "\n当前对话上下文：\n" + chatCtx + "\n";
+        userPrompt += "\n请根据上述规则生成user的穿搭。";
+        
+        var messages = [
+            { role: "system", content: sysPrompt },
+            { role: "user", content: userPrompt }
+        ];
+        
+        console.log("[OM-AI] sending fetch, prompt total len=" + (sysPrompt.length + userPrompt.length));
+        
+        var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        var tid = setTimeout(function() { if (controller) controller.abort(); }, 30000);
+        
+        fetch(normalizeEndpoint(apiCfg.endpoint, 'chat'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiCfg.key },
+            body: JSON.stringify({ model: apiCfg.model, messages: messages, max_tokens: 600, temperature: 0.8 }),
+            signal: controller ? controller.signal : undefined
+        }).then(function(r) {
+            clearTimeout(tid);
+            if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t.slice(0, 200)); });
+            return r.json();
+        }).then(function(data) {
+            var text = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+            console.log("[OM-AI] API response, text len=" + text.length);
+            if (!text || text.trim().length < 5) { console.log("[OM-AI] response too short, fallback"); callback(null); return; }
+            var desc = text.trim();
             var outfit = { id: genId(), name: scene + "搭配", category: "世界书", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
             console.log("[OM-AI] success, outfit desc len=" + desc.length);
             callback([outfit]);
         }).catch(function(err) {
-            if (_done) return; _done = true; clearTimeout(_tid);
-            console.log("[OM-AI] genFn rejected:", err);
+            clearTimeout(tid);
+            console.log("[OM-AI] fetch failed:", err.message || err);
             callback(null);
-        });    }
-
-
-
+        });
+    }
 
 function renderQuickScenes(d) {
         var el = document.getElementById('om-quick-scenes');
