@@ -1880,10 +1880,13 @@
         // 点击标签弹出可编辑框
         panel.querySelectorAll('.om-detail-tag').forEach(function (tag) {
             tag.addEventListener('click', function (e) {
+                e.stopPropagation();
                 if (e.target.closest('.om-detail-tag-x')) return;
                 var id = tag.dataset.id;
                 var dd = load(); var o = getById(dd, id); if (!o) return;
                 closeDetailPanel();
+                // remove any stale modals before creating new one
+                var mp_check = getPopupLayer(); var existings = mp_check.querySelectorAll('.om-modal'); existings.forEach(function(el) { el.remove(); });
                 var modal = document.createElement('div'); modal.className = 'om-modal';
                 var bg = typeof darkMode !== 'undefined' && darkMode ? '#1e1e24' : '#ececef'; var fg = typeof darkMode !== 'undefined' && darkMode ? '#eee' : '#111';
                 modal.innerHTML = '<div class="om-modal-box" style="max-width:500px;background:' + bg + ';color:' + fg + '"><div class="om-modal-title" style="font-size:1.1em"><i class="fa-solid fa-pen-to-square"></i> ' + esc('编辑：' + o.name) + '</div>' +
