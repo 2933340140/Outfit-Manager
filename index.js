@@ -1720,13 +1720,14 @@
         // System prompt
         var sysPrompt = "\u4f60\u662f\u4e00\u4e2a\u7a7f\u642d\u52a9\u624b\u3002\u4ee5\u4e0b\u662f\u53ef\u53c2\u8003\u7684\u7a7f\u642d\u98ce\u683c\u6307\u5bfc\uff1a\n" + styleGuide + "\n\u5fc5\u987b\u9075\u5faa\u4ee5\u4e0b\u89c4\u5219\uff1a\n- \u8981\u6839\u636e\u6b63\u6587\u4ee5\u53ca\u524d\u6587\u6545\u4e8b\u60c5\u8282\u5224\u65ad\u6b64\u65f6user\u662f\u5426\u9700\u8981\u66f4\u6362\u670d\u9970\u3002\n- \u6839\u636euser\u7684\u6027\u683c\u4eba\u8bbe\uff0c\u968f\u673a\u751f\u6210user\u7684\u7a7f\u642d\u670d\u9970\uff0c\u9700\u9075\u5faa\u5404\u4e2a\u98ce\u683c\u7684\u7a7f\u642d\u6307\u5bfc\uff0c\u5e76\u7b26\u5408\u5f53\u524d\u4eba\u7269\u6240\u5904\u7684\u60c5\u5883\uff0c\u5b63\u8282\uff08\u51ac\u79cb\u5b63\u65f6\u9700\u8981\u5728\u539f\u6765\u7684\u57fa\u7840\u4e0a\u589e\u8863\u4fdd\u6696\uff0c\u6625\u590f\u5b63\u9700\u4fdd\u6301\u6e05\u51c9\uff09\uff0c\u804c\u4e1a\uff08\u907f\u514d\u51fa\u73b0\u5728\u5de5\u4f5c\u65f6\u7a7f\u7740\u4e0d\u5f53\u7684\u60c5\u51b5\uff09\u548c\u559c\u597d\uff0c\u907f\u514dooc\u3002\u53d1\u6325\u60f3\u8c61\u5373\u53ef\uff0c\u7a7f\u642d\u98ce\u683c\u5747\u4e0d\u9650\u3002\n- \u4e25\u7981\u7167\u6284\u4f8b\u5b50\uff0c\u4f8b\u5b50\u4ec5\u4f9b\u7a7f\u642d\u53c2\u8003\u3002\n\u53ea\u8f93\u51fa\u7a7f\u642d\u63cf\u8ff0\u672c\u8eab\uff0c\u4e0d\u8981\u989d\u5916\u8bf4\u660e\u3002";
         var userPrompt = "\u573a\u666f\uff1a" + scene + "\n\u8bf7\u6839\u636e\u4e0a\u8ff0\u89c4\u5219\u751f\u6210user\u7684\u7a7f\u642d\u3002";
-        genFn(userPrompt, { quiet: true, force_name2: false, quiet_prompt: sysPrompt }, function(result) {
+                // New ST API: merge system prompt into quietPrompt
+        var fullPrompt = sysPrompt + "\n\n---\n\n" + userPrompt;
+        genFn({ quietPrompt: fullPrompt, quietToLoud: false }).then(function(result) {
             if (!result || typeof result !== "string" || result.trim().length < 5) { callback(null); return; }
             var desc = result.trim();
-            var outfit = { id: genId(), name: scene + "\u642d\u914d", category: "\u4e16\u754c\u4e66", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
+            var outfit = { id: genId(), name: scene + "搭配", category: "世界书", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
             callback([outfit]);
-        }, function(err) { callback(null); });
-    }
+        }).catch(function(err) { callback(null); });    }
 
 
 
