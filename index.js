@@ -3374,18 +3374,22 @@
     // ★ 剔除世界书穿搭条目（避免OM穿搭与世界书条目重复/冲突）
     function stripWorldBookEntries(p) {
         if (!p.messages || !Array.isArray(p.messages)) return;
+        var re = /<[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>[\s\S]*?<\/[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>/g;
         for (var si = 0; si < p.messages.length; si++) {
-            if (p.messages[si].role === 'system') {
-                var sc = p.messages[si].content;
-                if (typeof sc === 'string') {
-                    sc = sc.replace(/<[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>[\s\S]*?<\/[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>/g, '');
-                    sc = sc.replace(/\n{3,}/g, '\n\n');
-                    p.messages[si].content = sc;
+            var c = p.messages[si].content;
+            if (typeof c === 'string') {
+                p.messages[si].content = c.replace(re, '').replace(/\n{3,}/g, '\n\n');
+            } else if (Array.isArray(c)) {
+                for (var bi = 0; bi < c.length; bi++) {
+                    if (c[bi].type === 'text' && typeof c[bi].text === 'string') {
+                        c[bi].text = c[bi].text.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                    }
                 }
-                break;
             }
         }
     }
+
+
 
     function tryInjectBody(bodyStr) {
         var p; try { p = JSON.parse(bodyStr); } catch (e) { return null; }
