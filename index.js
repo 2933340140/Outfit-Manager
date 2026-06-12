@@ -3485,7 +3485,7 @@
             toast('👗 ' + summary + ' [' + d.mode + '|' + pos + ']');
         }
 
-        if (injected) { var finalStr = JSON.stringify(p); console.log("[OM] 实际发送 prompt 长度:", finalStr.length, "| 含世界书标签:", /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(finalStr) ? "是" : "否"); return finalStr; } return null;
+        var finalStr = JSON.stringify(p); console.log("[OM] 实际发送 prompt 长度:", finalStr.length, "| 含世界书标签:", /<[^>]*(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/.test(finalStr) ? "是" : "否"); return finalStr;
     }
 
     // ── 侧栏按钮 ──────────────────────────────────────────────
