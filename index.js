@@ -3371,6 +3371,22 @@
         };
     }
 
+    // ★ 剔除世界书穿搭条目（避免OM穿搭与世界书条目重复/冲突）
+    function stripWorldBookEntries(p) {
+        if (!p.messages || !Array.isArray(p.messages)) return;
+        for (var si = 0; si < p.messages.length; si++) {
+            if (p.messages[si].role === 'system') {
+                var sc = p.messages[si].content;
+                if (typeof sc === 'string') {
+                    sc = sc.replace(/<[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>[\s\S]*?<\/[^>]*?(?:穿搭|睡衣|随机穿搭)[^>]*?>/g, '');
+                    sc = sc.replace(/\n{3,}/g, '\n\n');
+                    p.messages[si].content = sc;
+                }
+                break;
+            }
+        }
+    }
+
     function tryInjectBody(bodyStr) {
         var p; try { p = JSON.parse(bodyStr); } catch (e) { return null; }
         if (!p || (!p.messages && p.prompt === undefined)) return null;
@@ -3383,7 +3399,7 @@
         var owners = [];
         // User
         var userOutfits = [];
-        (d.activeIds || []).forEach(function (id) { for (var i = 0; i < d.outfits.length; i++) { if (d.outfits[i].id === id) { userOutfits.push(d.outfits[i]); break; } } });
+        (d.activeIds || []).forEach(function (id) { var found = false; for (var i = 0; i < d.outfits.length; i++) { if (d.outfits[i].id === id) { userOutfits.push(d.outfits[i]); found = true; break; } } if (!found && d.virtualOutfits && d.virtualOutfits[id]) { var vo = d.virtualOutfits[id]; vo.id = id; userOutfits.push(vo); } });
         if (userOutfits.length > 0) owners.push({ name: 'User', outfits: userOutfits, tplSingle: d.singleTemplate, tplMulti: d.multiTemplate });
         // Chars
         if (d.chars) {
@@ -3396,6 +3412,8 @@
         }
 
         if (owners.length === 0) return null;
+        // ★ 有穿搭时剔除世界书条目，避免与OM穿搭冲突
+        stripWorldBookEntries(p);
 
         // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
         var allTextParts = [];
