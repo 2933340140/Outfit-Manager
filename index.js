@@ -3373,21 +3373,28 @@
 
     // ★ 剔除世界书穿搭条目（避免OM穿搭与世界书条目重复/冲突）
     function stripWorldBookEntries(p) {
-        if (!p.messages || !Array.isArray(p.messages)) return;
         var re = /<[^>]*?(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>[\s\S]*?<\/[^>]*?(?:穿搭|睡衣|随机穿搭|内衣|Cosplay)[^>]*?>/g;
-        for (var si = 0; si < p.messages.length; si++) {
-            var c = p.messages[si].content;
-            if (typeof c === 'string') {
-                p.messages[si].content = c.replace(re, '').replace(/\n{3,}/g, '\n\n');
-            } else if (Array.isArray(c)) {
-                for (var bi = 0; bi < c.length; bi++) {
-                    if (c[bi].type === 'text' && typeof c[bi].text === 'string') {
-                        c[bi].text = c[bi].text.replace(re, '').replace(/\n{3,}/g, '\n\n');
+        // 处理 messages 格式
+        if (p.messages && Array.isArray(p.messages)) {
+            for (var si = 0; si < p.messages.length; si++) {
+                var c = p.messages[si].content;
+                if (typeof c === 'string') {
+                    p.messages[si].content = c.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                } else if (Array.isArray(c)) {
+                    for (var bi = 0; bi < c.length; bi++) {
+                        if (c[bi].type === 'text' && typeof c[bi].text === 'string') {
+                            c[bi].text = c[bi].text.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                        }
                     }
                 }
             }
         }
+        // 处理 prompt 格式（旧版/长上下文可能用）
+        if (typeof p.prompt === 'string') {
+            p.prompt = p.prompt.replace(re, '').replace(/\n{3,}/g, '\n\n');
+        }
     }
+
 
 
 
