@@ -1683,6 +1683,10 @@
     // ── 底栏状态 ─────────────────────────────────────────────
     
         // ?? AI Outfit Generation ?????????????????????
+    function _isLingerieStyle(ws) {
+        return /内衣/.test(String((ws && ws.source) || '')) || /内衣|文胸|内裤|抹胸|蕾丝性感|法式三角杯|聚拢|丝绸奢华|基础纯棉|少女可爱/.test(String((ws && ws.name) || ''));
+    }
+
                 function tryGenerateAIDescription(scene, callback) {
         console.log("[OM-AI] tryGenerateAIDescription start, scene:", scene);
         var ctx = typeof SillyTavern !== "undefined" && SillyTavern.getContext ? SillyTavern.getContext() : null;
@@ -1699,8 +1703,8 @@
         var lingerieRefs = [];
         if (selectedWBNames.length > 0) {
             var allStyles = getWorldBookStyles(selectedWBNames);
-            modernRefs = allStyles.filter(function(ws) { return !isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
-            lingerieRefs = allStyles.filter(function(ws) { return isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
+            modernRefs = allStyles.filter(function(ws) { return !_isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
+            lingerieRefs = allStyles.filter(function(ws) { return _isLingerieStyle(ws) && worldBookStyleMatchesScene(ws, scene); });
         }
         console.log("[OM-AI] styles filtered: modern=" + modernRefs.length + ", lingerie=" + lingerieRefs.length);
         // Build style guide text from world book raw content
