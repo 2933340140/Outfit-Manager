@@ -1,0 +1,25 @@
+{
+  "name": "outfit-manager",
+  "version": "1.0.0",
+  "description": "> 给 SillyTavern 酒馆的穿搭管理插件。从此 AI 不再乱编服装，每天穿什么你说了算。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/2933340140/Outfit-Manager.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/2933340140/Outfit-Manager/issues"
+  },
+  "homepage": "https://github.com/2933340140/Outfit-Manager#readme",
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}
