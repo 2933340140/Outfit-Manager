@@ -7,7 +7,7 @@ export function toast(msg, isErr) {
         position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
         background: isErr ? '#e74c3c' : '#2ecc71', color: '#fff',
         padding: '8px 18px', borderRadius: '8px', fontSize: '14px',
-        zIndex: '100002', opacity: '0', transition: 'opacity .3s',
+        zIndex: '2147483647', opacity: '0', transition: 'opacity .3s',
         pointerEvents: 'none', maxWidth: '80vw', textAlign: 'center',
     });
     document.body.appendChild(el);
