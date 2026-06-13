@@ -428,7 +428,33 @@ function openEditSheet(outfit, defaultCat) {
         });
     });
 
-    sheet.querySelector('#om-dautotag').addEventListener('click', function () { if (editImages.length === 0) { toast('请先上传图片', true); return; } var ddx = load(); if (!ddx.apiVision.endpoint || !ddx.apiVision.key || !ddx.apiVision.model) { toast('请先配置 API', true); return; } var btnx = this; btnx.disabled = true; btnx.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 识别中...'; callVisionAPI(ddx.apiVision, { name: sheet.querySelector('#om-dn').value || '穿搭', dataUrl: editImages[0] }, ddx.apiVision.autoTagPrompt, function (err, text) { btnx.disabled = false; btnx.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 一键识别'; if (err) { toast('识别失败：' + err, true); return; } var parsed = parseAutoTagResult(text); if (parsed.name) sheet.querySelector('#om-dn').value = parsed.name; if (parsed.type) { var radios = sheet.querySelectorAll('input[name="om-dtype"]'); radios.forEach(function (r) { r.checked = r.value === parsed.type; }); } if (parsed.style) sheet.querySelector('#om-dstyle').value = parsed.style; if (parsed.season) sheet.querySelector('#om-dseason').value = parsed.season; if (parsed.scene) sheet.querySelector('#om-dscene').value = parsed.scene; if (parsed.description) sheet.querySelector('#om-ddesc').value = parsed.description; toast('一键识别完成'); }); });
+    sheet.querySelector('#om-dautotag').addEventListener('click', function () {
+        if (editImages.length === 0) { toast('请先上传图片', true); return; }
+        var ddx = load();
+        if (!ddx.apiVision.endpoint || !ddx.apiVision.key || !ddx.apiVision.model) { toast('请先配置 API', true); return; }
+        var btnx = this;
+        var existingDesc = sheet.querySelector('#om-ddesc').value.trim();
+        // 构建增强提示词：图片 + 已有文字描述
+        var tagPrompt = ddx.apiVision.autoTagPrompt || '请分析';
+        if (existingDesc) {
+            tagPrompt += '\n\n以下是我已有的穿搭文字描述，请结合图片和文字一起分析：\n"' + existingDesc + '"\n\n请根据图片和文字描述，补全以下信息（文字描述中已有的信息请优先采用）：';
+        }
+        btnx.disabled = true;
+        btnx.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 识别中...';
+        callVisionAPI(ddx.apiVision, { name: sheet.querySelector('#om-dn').value || '穿搭', dataUrl: editImages[0] }, tagPrompt, function (err, text) {
+            btnx.disabled = false;
+            btnx.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI 一键识别';
+            if (err) { toast('识别失败：' + err, true); return; }
+            var parsed = parseAutoTagResult(text);
+            if (parsed.name) sheet.querySelector('#om-dn').value = parsed.name;
+            if (parsed.type) { var radios = sheet.querySelectorAll('input[name="om-dtype"]'); radios.forEach(function (r) { r.checked = r.value === parsed.type; }); }
+            if (parsed.style) sheet.querySelector('#om-dstyle').value = parsed.style;
+            if (parsed.season) sheet.querySelector('#om-dseason').value = parsed.season;
+            if (parsed.scene) sheet.querySelector('#om-dscene').value = parsed.scene;
+            // 不覆盖文字描述，只填写元数据字段
+            toast('识别完成，已填写名称/类型/风格/季节/场景');
+        });
+    });
     sheet.querySelector('#om-dnewcat').addEventListener('click', function () {
         var name = prompt('新分类名称：'); if (!name || !name.trim()) return; name = name.trim();
         var dd = load(); var vc = getViewCategories(dd); if (vc.indexOf(name) === -1) { vc.push(name); save(dd); renderCatbar(); }
