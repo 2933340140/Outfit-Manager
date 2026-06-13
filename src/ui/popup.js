@@ -4,7 +4,7 @@
 import { def, SCRIPT_NAME } from '../constants.js';
 import { load, save, getSTContextSafe } from '../core/db.js';
 import { getCharData, currentOwner, getViewOutfits, getViewCategories, getViewActiveIds, setViewActiveIds, getById, getViewById, isActive } from '../core/data.js';
-import { genId, esc } from '../utils/helpers.js';
+import { genId, esc, getFirstImage, hasImages } from '../utils/helpers.js';
 import { toast } from '../utils/toast.js';
 import { compressImage } from '../utils/image.js';
 import { getDarkMode, setDarkMode } from './theme.js';
@@ -451,7 +451,7 @@ export function renderGrid() {
                 (o.description && o.description.toLowerCase().indexOf(q) !== -1);
         });
     }
-    var imgOutfits = list.filter(function (o) { return !!o.imageData; });
+    var imgOutfits = list.filter(function (o) { return hasImages(o); });
 
     var html = '';
 
@@ -488,7 +488,7 @@ export function renderGrid() {
             return ws.scene === curCat || ws.style === curCat;
         });
         wbMatching.forEach(function(ws, wi) {
-            list.push({ id: 'wb_grid_' + wi, name: ws.name, category: curCat, type: 'outfit', style: ws.style, season: ws.season, sceneTag: ws.scene, description: ws.desc, imageData: null, isVirtual: true });
+            list.push({ id: 'wb_grid_' + wi, name: ws.name, category: curCat, type: 'outfit', style: ws.style, season: ws.season, sceneTag: ws.scene, description: ws.desc, images: [], isVirtual: true });
         });
     }
     if (list.length === 0) {
@@ -503,8 +503,8 @@ export function renderGrid() {
             var badge = (on && !batchMode) ? '<div class="om-badge-on"><i class="fa-solid fa-check"></i></div>' : '';
 
             var imgContent = '';
-            if (o.imageData) {
-                imgContent = '<img src="' + o.imageData + '" alt="' + esc(o.name) + '" />';
+            if (hasImages(o)) {
+                imgContent = '<img src="' + getFirstImage(o) + '" alt="' + esc(o.name) + '" />';
             } else {
                 var descPreview = (o.description && o.description.trim()) ? o.description.trim() : '';
                 imgContent = '<div class="om-card-noimg">' +
@@ -516,7 +516,7 @@ export function renderGrid() {
 
             var menuBtn = batchMode ? '' : '<button class="om-card-menu" data-id="' + o.id + '" title="操作"><i class="fa-solid fa-ellipsis-vertical"></i></button>';
             var tagText = (o.sceneTag && o.sceneTag.trim()) ? o.sceneTag.trim() : '';
-            html += '<div class="om-card' + (on ? ' on' : '') + (bsel ? ' batch-sel' : '') + (o.imageData ? '' : ' no-img') + '" data-id="' + o.id + '">' +
+            html += '<div class="om-card' + (on ? ' on' : '') + (bsel ? ' batch-sel' : '') + (hasImages(o) ? '' : ' no-img') + '" data-id="' + o.id + '">' +
                 '<div class="om-card-img">' +
                 checkBox + imgContent + badge + menuBtn +
                 '</div>' +
@@ -626,7 +626,7 @@ export function renderGrid() {
             if (!dd.apiVision.endpoint || !dd.apiVision.key || !dd.apiVision.model) {
                 toast('请先在设置中配置"描述生成 API"', true); return;
             }
-            var hasImg = batchSelected.some(function (id) { var o = getById(dd, id); return o && o.imageData; });
+            var hasImg = batchSelected.some(function (id) { var o = getById(dd, id); return o && hasImages(o); });
             if (!hasImg) { toast('所选穿搭中没有带图片的', true); return; }
             openBatchDescModal(batchSelected.slice());
         });

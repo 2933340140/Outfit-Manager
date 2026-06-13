@@ -146,7 +146,7 @@ export function tryGenerateAIDescription(scene, callback) {
         if (!result || typeof result !== "string" || result.trim().length < 5) { console.log("[OM-AI] result too short, fallback"); callback(null); return; }
         var desc = _cleanOutfitResult(result);
         if (!desc || desc.length < 5) { console.log("[OM-AI] cleaned result too short, fallback"); callback(null); return; }
-        var outfit = { id: genId(), name: scene + "搭配", category: "世界书", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, imageData: null, createdAt: Date.now() };
+        var outfit = { id: genId(), name: scene + "搭配", category: "世界书", type: "outfit", description: desc, style: "", season: "", sceneTag: scene, images: [], createdAt: Date.now() };
         console.log("[OM-AI] success, outfit desc len=" + desc.length);
         callback([outfit]);
     }).catch(function(err) {

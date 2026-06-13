@@ -2,7 +2,7 @@
 import { def } from '../constants.js';
 import { load, save, getSTContextSafe } from '../core/db.js';
 import { getCharData, currentOwner, getViewOutfits, getViewCategories, getById } from '../core/data.js';
-import { genId, esc } from '../utils/helpers.js';
+import { genId, esc, hasImages } from '../utils/helpers.js';
 import { toast } from '../utils/toast.js';
 import { getDarkMode } from './theme.js';
 import { getPopupLayer } from './popup-layer.js';
@@ -213,7 +213,7 @@ export function processImport(imported, mode) {
 export function openBatchDescModal(ids) {
     var d = load();
     var darkMode = getDarkMode();
-    var withImg = ids.filter(function (id) { var o = getById(d, id); return o && o.imageData; });
+    var withImg = ids.filter(function (id) { var o = getById(d, id); return o && hasImages(o); });
     var skipCount = ids.length - withImg.length;
     var willSkipDesc = withImg.filter(function (id) { var o = getById(d, id); return o && o.description && o.description.trim() && !d.apiVision.overwrite; }).length;
 

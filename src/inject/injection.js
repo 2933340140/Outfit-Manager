@@ -8,6 +8,7 @@ import { load, getSTContextSafe } from '../core/db.js';
 import { currentOwner, getViewOutfits, getViewActiveIds, getById } from '../core/data.js';
 import { toast } from '../utils/toast.js';
 import { WB_CLOTHING_PATTERN } from '../constants.js';
+import { getFirstImage, getAllImages, hasImages } from '../utils/helpers.js';
 
 export function injectText(p, text, position) {
     if (!p.messages || !Array.isArray(p.messages)) {
@@ -86,13 +87,13 @@ export function injectImageBlocks(p, ownerImageGroups, imgPrompt, multiImgPrompt
                     c.push({ type: 'text', text: '\n[' + grp.name + '的可选穿搭 - 共' + grp.outfits.length + '套]' });
                     grp.outfits.forEach(function (o, i) {
                         c.push({ type: 'text', text: '\n(' + (i + 1) + ') ' + o.name + (o.sceneTag ? ' [场景：' + o.sceneTag + ']' : '') + '：' });
-                        c.push({ type: 'image_url', image_url: { url: o.imageData } });
+                        getAllImages(o).forEach(function(img) { c.push({ type: 'image_url', image_url: { url: img } }); });
                     });
                 } else {
                     // 单套
                     var o = grp.outfits[0];
                     c.push({ type: 'text', text: '\n[' + grp.name + '当前穿着]' });
-                    c.push({ type: 'image_url', image_url: { url: o.imageData } });
+                    getAllImages(o).forEach(function(img) { c.push({ type: 'image_url', image_url: { url: img } }); });
                 }
             });
 
@@ -184,7 +185,7 @@ export function tryInjectBody(bodyStr) {
     // ★ v19核心改动：先收集所有文本和图片，合并成一条再注入
     var allTextParts = [];
     // 图片模式：按owner收集，保留归属信息
-    var ownerImageGroups = []; // [{ name, outfits: [{name, imageData, sceneTag}], isMulti }]
+    var ownerImageGroups = []; // [{ name, outfits: [{name, images, sceneTag}], isMulti }]
 
     owners.forEach(function (ow) {
         var active = ow.outfits;
@@ -203,7 +204,7 @@ export function tryInjectBody(bodyStr) {
                 allTextParts.push(wt);
             }
             if (useImg) {
-                var imgOutfits = active.filter(function (o) { return !!o.imageData; });
+                var imgOutfits = active.filter(function (o) { return hasImages(o); });
                 if (imgOutfits.length > 0) ownerImageGroups.push({ name: ow.name, outfits: imgOutfits, isMulti: true });
             }
         } else {
@@ -215,7 +216,7 @@ export function tryInjectBody(bodyStr) {
                     .replace('{{description}}', desc2);
                 allTextParts.push(st);
             }
-            if (useImg && o.imageData) { ownerImageGroups.push({ name: ow.name, outfits: [o], isMulti: false }); }
+            if (useImg && hasImages(o)) { ownerImageGroups.push({ name: ow.name, outfits: [o], isMulti: false }); }
         }
     });
 

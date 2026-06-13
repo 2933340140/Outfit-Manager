@@ -100,7 +100,7 @@ export function renderQuickScenes(d) {
                     modal2.querySelector("#om-roll-wardrobe").addEventListener("click", function() {
                         var dd3 = load();
                         outfits.forEach(function(p) {
-                            var saved = { id: genId(), name: p.name, category: "世界书", type: "outfit", style: p.style || "", season: p.season || "", sceneTag: p.sceneTag || "", description: modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]') ? modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]').value : (p.description || ""), imageData: null, createdAt: Date.now() };
+                            var saved = { id: genId(), name: p.name, category: "世界书", type: "outfit", style: p.style || "", season: p.season || "", sceneTag: p.sceneTag || "", description: modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]') ? modal2.querySelector('.om-roll-desc[data-idx="' + outfits.indexOf(p) + '"]').value : (p.description || ""), images: [], createdAt: Date.now() };
                             dd3.outfits.push(saved);
                         });
                         save(dd3); renderGrid(); updateBtn(); mp2.removeChild(modal2); toast("已保存到衣橱");

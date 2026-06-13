@@ -1,6 +1,6 @@
 import { load, save } from '../core/db.js';
 import { currentOwner, getViewActiveIds, setViewActiveIds, getById } from '../core/data.js';
-import { esc, genId } from '../utils/helpers.js';
+import { esc, genId, getFirstImage, hasImages } from '../utils/helpers.js';
 import { getDarkMode } from './theme.js';
 import { getPopupLayer } from './popup-layer.js';
 import { toast } from '../utils/toast.js';
@@ -83,7 +83,7 @@ function openDetailPanel(groups, d) {
             modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
             modal.querySelector('#om-edit-save').addEventListener('click', function(e) {                     e.stopPropagation();                     var newDesc = modal.querySelector('#om-edit-desc').value;                     var dd2 = load(); var o2 = getById(dd2, id);                     if (o2) { o2.description = newDesc; save(dd2); }                     modal.remove();                     if (o2) { renderGrid(); renderBottomStatus(); updateBtn(); }                     toast('穿搭描述已更新');                 });
             modal.querySelector('#om-edit-close').addEventListener('click', function(e) { e.stopPropagation(); modal.remove(); });
-            modal.querySelector('#om-edit-wardrobe').addEventListener('click', function(e) {                     e.stopPropagation();                     var newDesc = modal.querySelector('#om-edit-desc').value;                     var dd2 = load(); var o2 = getById(dd2, id);                     if (o2) {                         var saved = { id: genId(), name: o2.name, category: '世界书', type: 'outfit', style: o2.style || '', season: o2.season || '', sceneTag: o2.sceneTag || '', description: newDesc, imageData: o2.imageData || null, createdAt: Date.now() };                         dd2.outfits.push(saved);                         save(dd2); renderGrid(); updateBtn();                     }                     modal.remove(); toast('已保存到衣橱');                 });
+            modal.querySelector('#om-edit-wardrobe').addEventListener('click', function(e) {                     e.stopPropagation();                     var newDesc = modal.querySelector('#om-edit-desc').value;                     var dd2 = load(); var o2 = getById(dd2, id);                     if (o2) {                         var saved = { id: genId(), name: o2.name, category: '世界书', type: 'outfit', style: o2.style || '', season: o2.season || '', sceneTag: o2.sceneTag || '', description: newDesc, images: (o2.images && o2.images.length > 0) ? o2.images.slice() : (o2.imageData ? [o2.imageData] : []), createdAt: Date.now() };                         dd2.outfits.push(saved);                         save(dd2); renderGrid(); updateBtn();                     }                     modal.remove(); toast('已保存到衣橱');                 });
         });
     });
     });

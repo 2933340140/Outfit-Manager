@@ -1,7 +1,7 @@
 // ── Vision API 调用核心 ──────────────────────────────
 import { load, save } from '../core/db.js';
 import { getById } from '../core/data.js';
-import { esc } from '../utils/helpers.js';
+import { esc, getFirstImage, hasImages } from '../utils/helpers.js';
 import { toast } from '../utils/toast.js';
 import { getPopupLayer } from '../ui/popup-layer.js';
 
@@ -139,7 +139,7 @@ export function batchGenerateDescriptions(outfitIds, progressCb, doneCb) {
     var targets = [];
     outfitIds.forEach(function (id) {
         var o = getById(d, id);
-        if (!o || !o.imageData) return;
+        if (!o || !hasImages(o)) return;
         if (!apiCfg.overwrite && o.description && o.description.trim()) return;
         targets.push(o);
     });
@@ -152,7 +152,7 @@ export function batchGenerateDescriptions(outfitIds, progressCb, doneCb) {
     function processNext() {
         if (queue.length === 0) return;
         var o = queue.shift();
-        var image = { name: o.name, dataUrl: o.imageData };
+        var image = { name: o.name, dataUrl: getFirstImage(o) };
         callVisionAPI(apiCfg, image, apiCfg.prompt, function (err, text) {
             done++;
             if (err) {
@@ -184,8 +184,8 @@ export function generateSingleDescription(outfit, cb) {
     var d = load();
     var apiCfg = d.apiVision;
     if (!apiCfg.endpoint || !apiCfg.key || !apiCfg.model) { cb('请先在设置中配置"描述生成 API"'); return; }
-    if (!outfit.imageData) { cb('该穿搭没有图片'); return; }
-    callVisionAPI(apiCfg, { name: outfit.name, dataUrl: outfit.imageData }, apiCfg.prompt, function (err, text) {
+    if (!hasImages(outfit)) { cb('该穿搭没有图片'); return; }
+    callVisionAPI(apiCfg, { name: outfit.name, dataUrl: getFirstImage(outfit) }, apiCfg.prompt, function (err, text) {
         if (err) { cb(err); return; }
         cb(null, text);
     });

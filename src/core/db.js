@@ -142,5 +142,25 @@ export function ensureDefaults(d) {
         if (d.useMainApi !== false) { d.useMainApi = true; autoDetectApiConfig(d); }
     }
     migrateV17(d);
+    migrateImages(d);
     return d;
+}
+
+// v22迁移：imageData(string) → images(array)
+function migrateImages(d) {
+    var convert = function (o) {
+        if (o && o.imageData && !o.images) {
+            o.images = [o.imageData];
+            delete o.imageData;
+        }
+        if (o && !o.images) o.images = [];
+    };
+    (d.outfits || []).forEach(convert);
+    if (d.chars) { for (var cn in d.chars) { (d.chars[cn].outfits || []).forEach(convert); } }
+    if (d.virtualOutfits) { for (var vid in d.virtualOutfits) { convert(d.virtualOutfits[vid]); } }
+    if (d.presets) {
+        d.presets.forEach(function (p) {
+            if (p.outfits) p.outfits.forEach(convert);
+        });
+    }
 }

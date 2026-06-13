@@ -1,6 +1,6 @@
 import { load, save } from '../core/db.js';
 import { getById, isActive, getViewActiveIds, setViewActiveIds } from '../core/data.js';
-import { esc } from '../utils/helpers.js';
+import { esc, hasImages } from '../utils/helpers.js';
 import { toast } from '../utils/toast.js';
 import { getDarkMode } from './theme.js';
 import { createSheet, closeSheet } from './sheet-utils.js';
@@ -22,9 +22,9 @@ export function openContextMenu(outfit, imgOutfits) {
         isOn
             ? '<div class="om-ctx-item" id="om-ctx-wear"><i class="fa-solid fa-circle-xmark"></i>取消选择</div>'
             : '<div class="om-ctx-item" id="om-ctx-wear"><i class="fa-solid fa-circle-check"></i>选择穿搭</div>',
-        outfit.imageData ? '<div class="om-ctx-item" id="om-ctx-view"><i class="fa-solid fa-expand"></i>查看大图</div>' : '',
+        hasImages(outfit) ? '<div class="om-ctx-item" id="om-ctx-view"><i class="fa-solid fa-expand"></i>查看大图</div>' : '',
         '<div class="om-ctx-item" id="om-ctx-edit"><i class="fa-solid fa-pen"></i>编辑</div>',
-        outfit.imageData ? '<div class="om-ctx-item" id="om-ctx-aidesc"><i class="fa-solid fa-wand-magic-sparkles"></i>AI 生成描述</div>' : '',
+        hasImages(outfit) ? '<div class="om-ctx-item" id="om-ctx-aidesc"><i class="fa-solid fa-wand-magic-sparkles"></i>AI 生成描述</div>' : '',
         '<div class="om-ctx-item danger" id="om-ctx-del"><i class="fa-solid fa-trash"></i>删除</div>',
     ].join(''));
 

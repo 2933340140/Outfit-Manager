@@ -62,7 +62,7 @@ export function getSelectedWorldBookNames(ctx, d) {
 
 export function createWorldBookOutfit(ws, idPrefix, idx) {
     var mw = materializeWorldBookStyle(ws);
-    return { id: (idPrefix || 'wb_dyn') + '_' + idx, name: mw.name, category: '世界书', type: 'outfit', style: '', season: '', sceneTag: '', description: mw.desc, imageData: null, isVirtual: true, source: mw.source || ws.source || '' };
+    return { id: (idPrefix || 'wb_dyn') + '_' + idx, name: mw.name, category: '世界书', type: 'outfit', style: '', season: '', sceneTag: '', description: mw.desc, images: [], isVirtual: true, source: mw.source || ws.source || '' };
 }
 
 export function getWorldBookStyleSceneKeys(ws) {
