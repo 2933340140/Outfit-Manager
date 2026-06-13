@@ -11,12 +11,12 @@ export function injectStyles() {
         '@keyframes om-popin{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}',
 
         /* 全屏遮罩/容器 */
-        '.om-light{--om-bg:#ffffff;--om-bg2:#f5f5f7;--om-text:#1a1a2e;--om-border:#d1d1d6;--om-card-bg:#f5f5f7;--om-head-bg:rgba(255,255,255,.8);}',
+        '.om-light{--om-bg:#ffffff !important;--om-bg2:#f0f0f3 !important;--om-text:#111 !important;--om-border:#ccc !important;--om-card-bg:#f0f0f3 !important;--om-head-bg:#fff !important;}',
         '.om-dark{--om-bg:#16161a;--om-bg2:#1e1e24;--om-text:#eee;--om-border:rgba(255,255,255,.08);--om-card-bg:rgba(255,255,255,.05);--om-head-bg:rgba(0,0,0,.3);}',
         '.om-overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;z-index:2147483647;',
         'background:var(--om-bg,var(--SmartThemeBackgroundColor,#16161a));',
         'color:var(--om-text,var(--SmartThemeBodyColor,#eee));',
-        'display:flex;flex-direction:column;color:var(--SmartThemeBodyColor,#eee);',
+        'display:flex;flex-direction:column;',
         'animation:om-fadein .18s ease;font-size:14px;}',
 
         /* 主框 全屏填满 */
