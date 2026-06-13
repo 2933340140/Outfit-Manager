@@ -73,9 +73,9 @@ export function importSTPreset() {
         imported: false,
     };
 
-    // 读取 API 参数
-    if (ctx.chatCompletionSettings) {
-        var cs = ctx.chatCompletionSettings;
+    // 读取 API 参数 — 尝试多种来源
+    var cs = ctx.chatCompletionSettings;
+    if (cs && cs.api_url) {
         result.apiSettings = {
             endpoint: cs.api_url || '',
             key: cs.api_key || '',
@@ -86,6 +86,23 @@ export function importSTPreset() {
             frequencyPenalty: cs.frequency_penalty !== undefined ? cs.frequency_penalty : null,
             presencePenalty: cs.presence_penalty !== undefined ? cs.presence_penalty : null,
         };
+        result.imported = true;
+    }
+
+    // 备选：从主 API 连接配置读取（Text Completion / KoboldAI 等）
+    if (!result.imported) {
+        try {
+            // 尝试 main_api 相关设置
+            if (ctx.main_api) result.mainApi = ctx.main_api;
+            if (ctx.settings && ctx.settings.api_url) {
+                result.apiSettings = {
+                    endpoint: ctx.settings.api_url || '',
+                    key: ctx.settings.api_key || '',
+                    model: ctx.settings.model || '',
+                };
+                result.imported = true;
+            }
+        } catch (e) { /* ignore */ }
     }
 
     // 尝试读取预设管理器的扩展字段
@@ -175,9 +192,16 @@ export function getAllTemplates() {
 // ── 将酒馆预设参数应用到 API 配置 ────────────────────
 export function applySTPresetToApiConfig(d) {
     var stPreset = importSTPreset();
-    if (!stPreset || !stPreset.apiSettings) return;
 
-    var s = stPreset.apiSettings;
+    // 检查是否真正导入了 API 设置
+    if (!stPreset) { toast('无法访问酒馆上下文', true); return false; }
+
+    var s = stPreset.apiSettings || {};
+    if (!s.endpoint && !s.key && !s.model) {
+        toast('未检测到酒馆 API 配置，请手动填写下方的 API 地址和 Key', true);
+        return false;
+    }
+
     if (s.endpoint) d.apiVision.endpoint = s.endpoint;
     if (s.key) d.apiVision.key = s.key;
     if (s.model) d.apiVision.model = s.model;
@@ -191,7 +215,8 @@ export function applySTPresetToApiConfig(d) {
         presencePenalty: s.presencePenalty,
     };
 
-    toast('已导入酒馆预设参数');
+    toast('已导入酒馆 API 配置：' + (s.model || s.endpoint || 'OK'));
+    return true;
 }
 
 // ── 将预设保存到酒馆的预设管理器 ─────────────────────

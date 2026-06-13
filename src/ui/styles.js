@@ -11,7 +11,7 @@ export function injectStyles() {
         '@keyframes om-popin{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}',
 
         /* 全屏遮罩/容器 */
-        '.om-light{--om-bg:#ffffff !important;--om-bg2:#f0f0f3 !important;--om-text:#111 !important;--om-border:#ccc !important;--om-card-bg:#f0f0f3 !important;--om-head-bg:#fff !important;}',
+        '.om-light{--om-bg:#f2f2f5 !important;--om-bg2:#e8e8ec !important;--om-text:#1a1a1a !important;--om-border:#c8c8ce !important;--om-card-bg:#e8e8ec !important;--om-head-bg:#eaeaed !important;}',
         '.om-dark{--om-bg:#16161a;--om-bg2:#1e1e24;--om-text:#eee;--om-border:rgba(255,255,255,.08);--om-card-bg:rgba(255,255,255,.05);--om-head-bg:rgba(0,0,0,.3);}',
         '.om-overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;z-index:2147483647;',
         'background:var(--om-bg,var(--SmartThemeBackgroundColor,#16161a));',
