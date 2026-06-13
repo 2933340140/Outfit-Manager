@@ -73,36 +73,46 @@ export function importSTPreset() {
         imported: false,
     };
 
-    // 读取 API 参数 — 尝试多种来源
-    var cs = ctx.chatCompletionSettings;
-    if (cs && cs.api_url) {
-        result.apiSettings = {
-            endpoint: cs.api_url || '',
-            key: cs.api_key || '',
-            model: cs.model || '',
-            temperature: cs.temperature !== undefined ? cs.temperature : null,
-            maxTokens: cs.openai_max_tokens || cs.max_tokens || null,
-            topP: cs.top_p !== undefined ? cs.top_p : null,
-            frequencyPenalty: cs.frequency_penalty !== undefined ? cs.frequency_penalty : null,
-            presencePenalty: cs.presence_penalty !== undefined ? cs.presence_penalty : null,
-        };
-        result.imported = true;
-    }
+    // 读取 API 参数 — 使用正确的 ST 字段名
+    var mainApi = ctx.mainApi || '';
 
-    // 备选：从主 API 连接配置读取（Text Completion / KoboldAI 等）
-    if (!result.imported) {
-        try {
-            // 尝试 main_api 相关设置
-            if (ctx.main_api) result.mainApi = ctx.main_api;
-            if (ctx.settings && ctx.settings.api_url) {
-                result.apiSettings = {
-                    endpoint: ctx.settings.api_url || '',
-                    key: ctx.settings.api_key || '',
-                    model: ctx.settings.model || '',
-                };
-                result.imported = true;
-            }
-        } catch (e) { /* ignore */ }
+    if (mainApi === 'openai') {
+        var cs = ctx.chatCompletionSettings || {};
+        var url = '';
+        if (cs.chat_completion_source === 'custom') url = cs.custom_url || '';
+        else if (cs.reverse_proxy) url = cs.reverse_proxy || '';
+
+        var model = '';
+        if (ctx.getChatCompletionModel) {
+            try { model = ctx.getChatCompletionModel(cs) || ''; } catch (e) {}
+        }
+
+        if (url || model) {
+            result.apiSettings = {
+                endpoint: url,
+                key: '', // ST不暴露key给扩展
+                model: model,
+                temperature: cs.temperature !== undefined ? cs.temperature : null,
+                maxTokens: cs.max_tokens || null,
+                topP: cs.top_p !== undefined ? cs.top_p : null,
+                frequencyPenalty: cs.frequency_penalty !== undefined ? cs.frequency_penalty : null,
+                presencePenalty: cs.presence_penalty !== undefined ? cs.presence_penalty : null,
+            };
+            result.imported = true;
+            result.apiType = 'Chat Completion (' + (cs.chat_completion_source || 'openai') + ')';
+        }
+
+    } else if (mainApi === 'textgenerationwebui') {
+        var ts = ctx.textCompletionSettings || {};
+        var endpoint = '';
+        if (ctx.getTextGenServer) {
+            try { endpoint = ctx.getTextGenServer() || ''; } catch (e) {}
+        }
+        if (endpoint) {
+            result.apiSettings = { endpoint: endpoint, key: '', model: '' };
+            result.imported = true;
+            result.apiType = 'Text Completion (' + (ts.type || 'unknown') + ')';
+        }
     }
 
     // 尝试读取预设管理器的扩展字段
@@ -241,4 +251,106 @@ export function saveToSTPreset(config) {
     }
     toast('保存到酒馆预设失败', true);
     return false;
+}
+
+// ── 导入外部预设文件（.json）────────────────────────
+export function importExternalPreset(file, callback) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            var preset = JSON.parse(e.target.result);
+            var result = parsePresetFile(preset);
+            if (!result) {
+                toast('无法解析预设文件', true);
+                if (callback) callback(null);
+                return;
+            }
+            // 保存为自定义模板
+            var tpl = saveCustomTemplate(
+                result.name || '导入的预设',
+                result.systemPrompt || '',
+                result.userPromptPrefix || '',
+                result.temperature || 0.8,
+                result.maxTokens || 600
+            );
+            setActiveTemplate(tpl.id);
+            toast('已导入预设：' + tpl.name);
+            if (callback) callback(tpl);
+        } catch (err) {
+            toast('预设文件格式错误：' + err.message, true);
+            if (callback) callback(null);
+        }
+    };
+    reader.onerror = function () {
+        toast('读取文件失败', true);
+        if (callback) callback(null);
+    };
+    reader.readAsText(file);
+}
+
+function parsePresetFile(preset) {
+    if (!preset || typeof preset !== 'object') return null;
+
+    var result = {
+        name: '',
+        systemPrompt: '',
+        userPromptPrefix: '',
+        temperature: 0.8,
+        maxTokens: 600,
+    };
+
+    // 尝试读取名称
+    result.name = preset.name || preset.preset_name || preset.title || '导入的预设';
+
+    // 尝试读取温度和token数
+    if (preset.temperature !== undefined) result.temperature = parseFloat(preset.temperature) || 0.8;
+    if (preset.max_tokens !== undefined) result.maxTokens = parseInt(preset.max_tokens) || 600;
+    else if (preset.openai_max_tokens !== undefined) result.maxTokens = parseInt(preset.openai_max_tokens) || 600;
+
+    // 尝试读取系统提示词
+    if (preset.system_prompt) result.systemPrompt = preset.system_prompt;
+    else if (preset.systemPrompt) result.systemPrompt = preset.systemPrompt;
+    else if (preset.content && typeof preset.content === 'string') result.systemPrompt = preset.content;
+
+    // 尝试读取 jailbreak / main prompt
+    if (preset.main_prompt && !result.systemPrompt) result.systemPrompt = preset.main_prompt;
+    if (preset.nsfw_first && !result.systemPrompt) result.systemPrompt = preset.nsfw_first;
+
+    // 尝试读取增强提示词（作为用户前缀）
+    if (preset.enhance_definitions_prompt) result.userPromptPrefix = preset.enhance_definitions_prompt;
+
+    // 如果是 SillyTavern promptCompletion 格式
+    if (preset.prompt_template) {
+        var tpl = preset.prompt_template;
+        if (tpl.system_prompt && tpl.system_prompt.content) {
+            result.systemPrompt = tpl.system_prompt.content;
+        }
+    }
+
+    return result;
+}
+
+// ── 从酒馆已保存的预设列表导入 ───────────────────────
+export function importFromSTPresetList() {
+    var ctx = getSTContextSafe();
+    if (!ctx || !ctx.getPresetManager) {
+        toast('无法访问酒馆预设管理器', true);
+        return [];
+    }
+    try {
+        var pm = ctx.getPresetManager();
+        if (!pm) return [];
+
+        // 尝试获取预设列表
+        // PresetManager 的 getAllPresets 方法可能不同版本不同
+        var presets = [];
+        if (pm.getAllPresets) {
+            presets = pm.getAllPresets() || [];
+        } else if (pm.presets) {
+            presets = pm.presets;
+        }
+        return presets;
+    } catch (e) {
+        return [];
+    }
 }

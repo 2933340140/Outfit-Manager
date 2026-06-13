@@ -18,7 +18,7 @@ import { _cleanOutfitResult, tryGenerateAIDescription } from '../ai/generator.js
 import { callVisionAPI, openModelPicker, batchGenerateDescriptions, generateSingleDescription, fetchModelList, normalizeEndpoint } from '../ai/vision.js';
 import { autoDetectApiConfig } from '../ai/api-detect.js';
 import { openLightbox } from './lightbox.js';
-import { BUILTIN_TEMPLATES, importSTPreset, getActiveTemplate, setActiveTemplate, saveCustomTemplate, deleteCustomTemplate, getAllTemplates, applySTPresetToApiConfig, saveToSTPreset } from '../ai/presets.js';
+import { BUILTIN_TEMPLATES, importSTPreset, getActiveTemplate, setActiveTemplate, saveCustomTemplate, deleteCustomTemplate, getAllTemplates, applySTPresetToApiConfig, saveToSTPreset, importExternalPreset } from '../ai/presets.js';
 
 // ── exportData / importData stubs ────────────────────────
 // These are still in index.js; register them at boot via registerSheetCallbacks().
@@ -624,7 +624,9 @@ function openSettingsSheet() {
         '<div class="om-setting-row" style="display:flex;gap:6px;flex-wrap:wrap">',
         '<button class="om-btn om-btn-outline" id="om-preset-import-st" style="font-size:.8em"><i class="fa-solid fa-download"></i> 导入酒馆预设</button>',
         '<button class="om-btn om-btn-outline" id="om-preset-save-st" style="font-size:.8em"><i class="fa-solid fa-upload"></i> 保存到酒馆预设</button>',
+        '<button class="om-btn om-btn-outline" id="om-preset-import-ext" style="font-size:.8em"><i class="fa-solid fa-file-import"></i> 导入外部预设</button>',
         '<button class="om-btn om-btn-outline" id="om-preset-new-tpl" style="font-size:.8em"><i class="fa-solid fa-plus"></i> 新建自定义模板</button>',
+        '<input type="file" id="om-preset-ext-file" accept=".json" style="display:none" />',
         '</div>',
         '<div id="om-preset-custom-form" style="display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px">',
         '<div style="font-weight:600;font-size:.9em;margin-bottom:8px">新建自定义模板</div>',
@@ -720,6 +722,22 @@ function openSettingsSheet() {
         var dd = load();
         var ok = saveToSTPreset(dd.apiVision || {});
         if (!ok) toast('保存失败，请检查酒馆版本是否支持', true);
+    });
+    // 导入外部预设文件
+    var extFileInput = sheet.querySelector('#om-preset-ext-file');
+    sheet.querySelector('#om-preset-import-ext').addEventListener('click', function () {
+        extFileInput.click();
+    });
+    extFileInput.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            importExternalPreset(this.files[0], function (tpl) {
+                if (tpl) {
+                    closeSheet(sheet);
+                    openSettingsSheet();
+                }
+            });
+            this.value = ''; // reset
+        }
     });
     // 新建自定义模板
     sheet.querySelector('#om-preset-new-tpl').addEventListener('click', function () {
