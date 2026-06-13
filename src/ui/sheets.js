@@ -18,6 +18,7 @@ import { _cleanOutfitResult, tryGenerateAIDescription } from '../ai/generator.js
 import { callVisionAPI, openModelPicker, batchGenerateDescriptions, generateSingleDescription, fetchModelList, normalizeEndpoint } from '../ai/vision.js';
 import { autoDetectApiConfig } from '../ai/api-detect.js';
 import { openLightbox } from './lightbox.js';
+import { BUILTIN_TEMPLATES, importSTPreset, getActiveTemplate, setActiveTemplate, saveCustomTemplate, deleteCustomTemplate, getAllTemplates, applySTPresetToApiConfig, saveToSTPreset } from '../ai/presets.js';
 
 // ── exportData / importData stubs ────────────────────────
 // These are still in index.js; register them at boot via registerSheetCallbacks().
@@ -593,9 +594,42 @@ function openSettingsSheet() {
     var d = load();
     var imgCount = d.outfits.filter(function (o) { return hasImages(o); }).length;
 
+    var tplList = getAllTemplates();
+    var activeTpl = getActiveTemplate();
+    var tplOpts = tplList.map(function (t) {
+        var isCustom = t.id.indexOf('custom_') === 0;
+        return '<option value="' + esc(t.id) + '"' + (t.id === activeTpl.id ? ' selected' : '') + '>' + esc(t.name) + (isCustom ? ' (自定义)' : '') + '</option>';
+    }).join('');
+
     var sheet = createSheet([
         '<div class="om-sheet-title"><i class="fa-solid fa-sliders"></i>设置</div>',
 
+        '<div class="om-sec-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:4px"></i>提示词预设</div>',
+        '<div class="om-setting-row"><label>当前模板</label><select id="om-preset-tpl-sel">' + tplOpts + '</select></div>',
+        '<div class="om-setting-row" style="display:flex;gap:6px;flex-wrap:wrap">',
+        '<button class="om-btn om-btn-outline" id="om-preset-import-st" style="font-size:.8em"><i class="fa-solid fa-download"></i> 导入酒馆预设</button>',
+        '<button class="om-btn om-btn-outline" id="om-preset-save-st" style="font-size:.8em"><i class="fa-solid fa-upload"></i> 保存到酒馆预设</button>',
+        '<button class="om-btn om-btn-outline" id="om-preset-new-tpl" style="font-size:.8em"><i class="fa-solid fa-plus"></i> 新建自定义模板</button>',
+        '</div>',
+        '<div id="om-preset-custom-form" style="display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px">',
+        '<div style="font-weight:600;font-size:.9em;margin-bottom:8px">新建自定义模板</div>',
+        '<div class="om-setting-row"><label>模板名称</label><input type="text" id="om-ctpl-name" placeholder="如：我的甜美风" /></div>',
+        '<div class="om-setting-row"><label>系统提示词</label><textarea id="om-ctpl-sys" rows="4" placeholder="定义AI角色和输出格式..."></textarea></div>',
+        '<div class="om-setting-row"><label>用户提示前缀</label><textarea id="om-ctpl-user" rows="2" placeholder="如：请为以下场景设计穿搭："></textarea></div>',
+        '<div class="om-setting-row"><label>Temperature: <span id="om-ctpl-temp-val">0.8</span></label><input type="range" id="om-ctpl-temp" min="0" max="2" step="0.05" value="0.8" style="width:100%" /></div>',
+        '<div class="om-setting-row"><label>Max Tokens</label><input type="number" id="om-ctpl-tokens" value="600" min="50" max="4000" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100px;box-sizing:border-box;font-family:inherit" /></div>',
+        '<div class="om-btn-row" style="margin-top:6px"><button class="om-btn om-btn-safe" id="om-ctpl-save">保存模板</button><button class="om-btn om-btn-outline" id="om-ctpl-cancel">取消</button></div>',
+        '</div>',
+        '<div id="om-preset-edit-area" style="display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px">',
+        '<div style="font-weight:600;font-size:.9em;margin-bottom:8px"><span id="om-ptpl-edit-title"></span></div>',
+        '<div class="om-setting-row"><label>系统提示词</label><textarea id="om-ptpl-sys" rows="4"></textarea></div>',
+        '<div class="om-setting-row"><label>用户提示前缀</label><textarea id="om-ptpl-user" rows="2"></textarea></div>',
+        '<div class="om-setting-row"><label>Temperature: <span id="om-ptpl-temp-val"></span></label><input type="range" id="om-ptpl-temp" min="0" max="2" step="0.05" style="width:100%" /></div>',
+        '<div class="om-setting-row"><label>Max Tokens</label><input type="number" id="om-ptpl-tokens" min="50" max="4000" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100px;box-sizing:border-box;font-family:inherit" /></div>',
+        '<div class="om-btn-row" style="margin-top:6px"><button class="om-btn om-btn-safe" id="om-ptpl-save">保存修改</button><button class="om-btn om-btn-outline" id="om-ptpl-cancel">取消</button></div>',
+        '</div>',
+
+        '<div class="om-divider"></div>',
         '<div class="om-sec-title">发送内容</div>',
         '<div class="om-setting-row"><label>发送给 AI 的内容类型</label><select id="om-mode">',
         '<option value="text"' + (d.mode === 'text' ? ' selected' : '') + '>仅文字描述</option>',
@@ -670,6 +704,93 @@ function openSettingsSheet() {
     ].join(''));
 
     sheet.querySelector('#om-mode').addEventListener('change', function () { var dd = load(); dd.mode = this.value; save(dd); });
+
+    // ── 提示词预设事件 ─────────────────────────────────────
+    sheet.querySelector('#om-preset-tpl-sel').addEventListener('change', function () {
+        setActiveTemplate(this.value);
+        toast('已切换模板：' + this.options[this.selectedIndex].textContent);
+    });
+    sheet.querySelector('#om-preset-import-st').addEventListener('click', function () {
+        var dd = load();
+        applySTPresetToApiConfig(dd);
+        save(dd);
+    });
+    sheet.querySelector('#om-preset-save-st').addEventListener('click', function () {
+        var dd = load();
+        saveToSTPreset(dd.apiVision || {});
+    });
+    // 新建自定义模板
+    sheet.querySelector('#om-preset-new-tpl').addEventListener('click', function () {
+        sheet.querySelector('#om-preset-custom-form').style.display = 'block';
+        sheet.querySelector('#om-preset-edit-area').style.display = 'none';
+    });
+    sheet.querySelector('#om-ctpl-temp').addEventListener('input', function () {
+        sheet.querySelector('#om-ctpl-temp-val').textContent = this.value;
+    });
+    sheet.querySelector('#om-ctpl-save').addEventListener('click', function () {
+        var name = sheet.querySelector('#om-ctpl-name').value.trim();
+        if (!name) { toast('请输入模板名称', true); return; }
+        var sys = sheet.querySelector('#om-ctpl-sys').value.trim();
+        var user = sheet.querySelector('#om-ctpl-user').value.trim();
+        var temp = parseFloat(sheet.querySelector('#om-ctpl-temp').value) || 0.8;
+        var tokens = parseInt(sheet.querySelector('#om-ctpl-tokens').value) || 600;
+        var tpl = saveCustomTemplate(name, sys, user, temp, tokens);
+        setActiveTemplate(tpl.id);
+        closeSheet(sheet);
+        openSettingsSheet();
+        toast('模板「' + name + '」已保存并选中');
+    });
+    sheet.querySelector('#om-ctpl-cancel').addEventListener('click', function () {
+        sheet.querySelector('#om-preset-custom-form').style.display = 'none';
+    });
+    // 编辑已有模板（双击下拉框）
+    sheet.querySelector('#om-preset-tpl-sel').addEventListener('dblclick', function () {
+        var selId = this.value;
+        var all = getAllTemplates();
+        var tpl = null;
+        for (var i = 0; i < all.length; i++) { if (all[i].id === selId) { tpl = all[i]; break; } }
+        if (!tpl) return;
+        sheet.querySelector('#om-ptpl-edit-title').textContent = '编辑：' + tpl.name;
+        sheet.querySelector('#om-ptpl-sys').value = tpl.systemPrompt || '';
+        sheet.querySelector('#om-ptpl-user').value = tpl.userPromptPrefix || '';
+        sheet.querySelector('#om-ptpl-temp').value = tpl.temperature || 0.8;
+        sheet.querySelector('#om-ptpl-temp-val').textContent = tpl.temperature || 0.8;
+        sheet.querySelector('#om-ptpl-tokens').value = tpl.maxTokens || 600;
+        sheet.querySelector('#om-preset-edit-area').style.display = 'block';
+        sheet.querySelector('#om-preset-custom-form').style.display = 'none';
+        sheet.querySelector('#om-preset-edit-area').dataset.tplId = selId;
+        sheet.querySelector('#om-preset-edit-area').dataset.isCustom = selId.indexOf('custom_') === 0 ? '1' : '';
+    });
+    sheet.querySelector('#om-ptpl-temp').addEventListener('input', function () {
+        sheet.querySelector('#om-ptpl-temp-val').textContent = this.value;
+    });
+    sheet.querySelector('#om-ptpl-save').addEventListener('click', function () {
+        var area = sheet.querySelector('#om-preset-edit-area');
+        var tplId = area.dataset.tplId;
+        var isCustom = area.dataset.isCustom === '1';
+        if (isCustom) {
+            var dd = load();
+            if (dd.customTemplates) {
+                for (var i = 0; i < dd.customTemplates.length; i++) {
+                    if (dd.customTemplates[i].id === tplId) {
+                        dd.customTemplates[i].systemPrompt = sheet.querySelector('#om-ptpl-sys').value.trim();
+                        dd.customTemplates[i].userPromptPrefix = sheet.querySelector('#om-ptpl-user').value.trim();
+                        dd.customTemplates[i].temperature = parseFloat(sheet.querySelector('#om-ptpl-temp').value) || 0.8;
+                        dd.customTemplates[i].maxTokens = parseInt(sheet.querySelector('#om-ptpl-tokens').value) || 600;
+                        break;
+                    }
+                }
+                save(dd);
+            }
+        }
+        closeSheet(sheet);
+        openSettingsSheet();
+        toast('模板已更新');
+    });
+    sheet.querySelector('#om-ptpl-cancel').addEventListener('click', function () {
+        sheet.querySelector('#om-preset-edit-area').style.display = 'none';
+    });
+    // ── 预设事件结束 ─────────────────────────────────────
     sheet.querySelector('#om-inject-pos').addEventListener('change', function () { var dd = load(); dd.injectPosition = this.value; save(dd); });
     sheet.querySelector('#om-auto-roll').addEventListener('change', function () { var dd = load(); dd.autoRollDisabled = !this.checked; save(dd); });
     sheet.querySelector('#om-tpl-single').addEventListener('input', function () { var dd = load(); dd.singleTemplate = this.value; save(dd); });

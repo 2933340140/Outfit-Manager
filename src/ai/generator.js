@@ -7,6 +7,7 @@ import { getSTContextSafe, load } from '../core/db.js';
 import { LINGERIE_REGEX } from '../constants.js';
 import { getWorldBookStyles, getSelectedWorldBookNames, refreshWorldBookStyles, getWorldBookStyleCache, worldBookStyleMatchesScene } from '../worldbook/worldbook.js';
 import { genId } from '../utils/helpers.js';
+import { getActiveTemplate } from './presets.js';
 
 // ── Module-private helpers ─────────────────────────────────────
 
@@ -115,14 +116,27 @@ export function tryGenerateAIDescription(scene, callback) {
     if (!styleGuide) { console.log("[OM-AI] styleGuide empty, fallback"); callback(null); return; }
     console.log("[OM-AI] styleGuide built, len=" + styleGuide.length);
 
-    // System prompt: rules + format + example
-    var sysPrompt = "你是穿搭助手，必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n- 只输出穿搭结果，禁止输出或续写任何 <horae>、<content>、<details>、<status> 等状态标签或剧情标签。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述，不能抄已有的例子，不要额外说明。\n输出例子：<甜酷风>\n上衣：黑色露肩印花短款T恤（露锁骨设计）\n下装：灰紫色层层蛋糕蓬蓬短裙（不规则蕾丝纱质裙摆）\n配饰：黑色猫耳发筯、骷髅元素链条choker、金属多层手链、黑色链条腋下包\n鞋袜：黑灰条纹过膝堆堆长袜、厚底黑色圆头松糕鞋";
+    // ── 从预设模板读取系统提示词和参数 ────────────────────
+    var tpl = getActiveTemplate();
+    var stPreset = d.stPresetParams || null;
 
-    // User prompt: style guide section + context section
+    // temperature: 模板 > ST预设 > 默认0.8
+    var temperature = tpl.temperature || (stPreset && stPreset.temperature != null ? stPreset.temperature : 0.8);
+    // maxTokens: 模板 > ST预设 > 默认1200
+    var maxTokens = tpl.maxTokens || (stPreset && stPreset.maxTokens != null ? stPreset.maxTokens : 1200);
+
+    // System prompt: 优先用模板的，否则用原来的硬编码
+    var sysPrompt = tpl.systemPrompt && tpl.systemPrompt.trim()
+        ? tpl.systemPrompt
+        : "你是穿搭助手，必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n- 只输出穿搭结果，禁止输出或续写任何 <horae>、<content>、<details>、<status> 等状态标签或剧情标签。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述，不能抄已有的例子，不要额外说明。\n输出例子：<甜酷风>\n上衣：黑色露肩印花短款T恤（露锁骨设计）\n下装：灰紫色层层蛋糕蓬蓬短裙（不规则蕾丝纱质裙摆）\n配饰：黑色猫耳发筯、骷髅元素链条choker、金属多层手链、黑色链条腋下包\n鞋袜：黑灰条纹过膝堆堆长袜、厚底黑色圆头松糕鞋";
+
+    // User prompt: 可选前缀 + 风格指导 + 上下文
     var charInfo = _getCharacterInfo(ctx);
     var pendingInput = _getPendingUserInput();
     var chatCtx = _getChatContext(ctx);
-    var userPrompt = "=========穿搭风格指导=========\n" + styleGuide + "\n";
+
+    var userPromptPrefix = tpl.userPromptPrefix && tpl.userPromptPrefix.trim() ? tpl.userPromptPrefix.trim() + "\n" : "";
+    var userPrompt = userPromptPrefix + "=========穿搭风格指导=========\n" + styleGuide + "\n";
     userPrompt += "=========当前正文和故事情节=========\n";
     if (pendingInput) userPrompt += "当前用户输入：\n" + pendingInput + "\n";
     if (charInfo) userPrompt += charInfo + "\n";
@@ -140,7 +154,7 @@ export function tryGenerateAIDescription(scene, callback) {
         if (!done) { done = true; console.log("[OM-AI] TIMEOUT 30s, fallback"); callback(null); }
     }, 30000);
 
-    genFn({ prompt: userPrompt, systemPrompt: sysPrompt, quietToLoud: false, responseLength: 1200 }).then(function(result) {
+    genFn({ prompt: userPrompt, systemPrompt: sysPrompt, quietToLoud: false, responseLength: maxTokens, temperature: temperature }).then(function(result) {
         if (done) return; done = true; clearTimeout(tid);
         console.log("[OM-AI] generateRaw resolved, result len=" + (result ? result.length : 0));
         if (!result || typeof result !== "string" || result.trim().length < 5) { console.log("[OM-AI] result too short, fallback"); callback(null); return; }

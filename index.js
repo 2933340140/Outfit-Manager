@@ -1392,6 +1392,175 @@
 		return result;
 	}
 	//#endregion
+	//#region src/ai/presets.js
+	var BUILTIN_TEMPLATES = [
+		{
+			id: "default",
+			name: "默认（平衡风格）",
+			description: "平衡细节与叙事，适合大多数场景",
+			systemPrompt: "你是一位穿搭助手。根据角色性格、场景和季节，为角色设计一套合适的穿搭。输出格式：第一行为风格名称，之后为100-200字的穿搭描述。描述要具体到颜色、材质、款式细节。禁止编造图中没有的服装。",
+			userPromptPrefix: "请为以下场景设计穿搭：",
+			temperature: .8,
+			maxTokens: 600
+		},
+		{
+			id: "sweet",
+			name: "甜美风",
+			description: "少女感、柔和色调、蝴蝶结/蕾丝元素",
+			systemPrompt: "你是一位擅长甜美风格的穿搭设计师。为角色设计甜美可爱的穿搭，注重柔和色调（粉色、浅蓝、奶白）、蝴蝶结、蕾丝、荷叶边等少女元素。输出格式：第一行为风格名称，之后为100-200字的甜美风穿搭描述，突出可爱感和细节。",
+			userPromptPrefix: "请设计一套甜美风穿搭：",
+			temperature: .9,
+			maxTokens: 600
+		},
+		{
+			id: "japanese",
+			name: "日系风",
+			description: "日式时尚、层次感、oversized搭配",
+			systemPrompt: "你是一位精通日本时尚的穿搭设计师。为角色设计日系风格穿搭，注重层次感、宽松剪裁、oversized搭配、冷淡色调或大地色系。参考原宿风、无印良品风、日系简约等风格。输出格式：第一行为风格名称，之后为100-200字的日系穿搭描述。",
+			userPromptPrefix: "请设计一套日系风穿搭：",
+			temperature: .85,
+			maxTokens: 600
+		},
+		{
+			id: "formal",
+			name: "正式场合",
+			description: "商务正装、晚宴、优雅得体",
+			systemPrompt: "你是一位精通正装礼仪的穿搭顾问。为角色设计适合正式场合的穿搭（商务会议、晚宴、颁奖典礼等），注重面料质感（羊毛、真丝、缎面）、剪裁合身、配色稳重。输出格式：第一行为场合和风格名称，之后为100-200字的正装穿搭描述。",
+			userPromptPrefix: "请设计一套正式场合穿搭：",
+			temperature: .7,
+			maxTokens: 600
+		},
+		{
+			id: "street",
+			name: "街头风",
+			description: "潮流街头、运动休闲、大胆配色",
+			systemPrompt: "你是一位街头时尚达人。为角色设计潮流街头风格的穿搭，注重大胆配色、oversized轮廓、运动元素混搭、品牌球鞋、帽子配饰等。可以融合工装、运动、嘻哈等元素。输出格式：第一行为风格标签，之后为100-200字的街头风穿搭描述。",
+			userPromptPrefix: "请设计一套街头风穿搭：",
+			temperature: .95,
+			maxTokens: 600
+		},
+		{
+			id: "comfort",
+			name: "居家舒适",
+			description: "家居服、睡衣、舒适面料",
+			systemPrompt: "你是一位注重舒适的穿搭设计师。为角色设计居家舒适的穿搭，注重柔软面料（棉、法兰绒、针织）、宽松版型、温暖感。适合居家、休息、睡眠场景。输出格式：第一行为风格名称，之后为100-200字的舒适穿搭描述。",
+			userPromptPrefix: "请设计一套居家舒适穿搭：",
+			temperature: .8,
+			maxTokens: 500
+		}
+	];
+	function importSTPreset() {
+		var ctx = getSTContextSafe();
+		if (!ctx) {
+			toast$1("无法访问 SillyTavern 上下文", true);
+			return null;
+		}
+		var result = {
+			name: "酒馆当前预设",
+			apiSettings: {},
+			systemPrompt: "",
+			imported: false
+		};
+		if (ctx.chatCompletionSettings) {
+			var cs = ctx.chatCompletionSettings;
+			result.apiSettings = {
+				endpoint: cs.api_url || "",
+				key: cs.api_key || "",
+				model: cs.model || "",
+				temperature: cs.temperature !== void 0 ? cs.temperature : null,
+				maxTokens: cs.openai_max_tokens || cs.max_tokens || null,
+				topP: cs.top_p !== void 0 ? cs.top_p : null,
+				frequencyPenalty: cs.frequency_penalty !== void 0 ? cs.frequency_penalty : null,
+				presencePenalty: cs.presence_penalty !== void 0 ? cs.presence_penalty : null
+			};
+		}
+		try {
+			if (ctx.getPresetManager) {
+				var pm = ctx.getPresetManager();
+				if (pm) {
+					var savedConfig = pm.readPresetExtensionField({ path: "outfit_manager" });
+					if (savedConfig) result.savedConfig = savedConfig;
+					result.imported = true;
+				}
+			}
+		} catch (e) {}
+		return result;
+	}
+	function getActiveTemplate() {
+		var d = load$1();
+		var tplId = d.activePromptTemplate || "default";
+		for (var i = 0; i < BUILTIN_TEMPLATES.length; i++) if (BUILTIN_TEMPLATES[i].id === tplId) return BUILTIN_TEMPLATES[i];
+		if (d.customTemplates) {
+			for (var j = 0; j < d.customTemplates.length; j++) if (d.customTemplates[j].id === tplId) return d.customTemplates[j];
+		}
+		return BUILTIN_TEMPLATES[0];
+	}
+	function setActiveTemplate(templateId) {
+		var d = load$1();
+		d.activePromptTemplate = templateId;
+		save$1(d);
+	}
+	function saveCustomTemplate(name, systemPrompt, userPromptPrefix, temperature, maxTokens) {
+		var d = load$1();
+		if (!d.customTemplates) d.customTemplates = [];
+		var tpl = {
+			id: "custom_" + Date.now().toString(36),
+			name,
+			description: "自定义模板",
+			systemPrompt: systemPrompt || "",
+			userPromptPrefix: userPromptPrefix || "",
+			temperature: temperature || .8,
+			maxTokens: maxTokens || 600
+		};
+		d.customTemplates.push(tpl);
+		save$1(d);
+		return tpl;
+	}
+	function getAllTemplates() {
+		var d = load$1();
+		var all = BUILTIN_TEMPLATES.slice();
+		if (d.customTemplates) d.customTemplates.forEach(function(t) {
+			all.push(t);
+		});
+		return all;
+	}
+	function applySTPresetToApiConfig(d) {
+		var stPreset = importSTPreset();
+		if (!stPreset || !stPreset.apiSettings) return;
+		var s = stPreset.apiSettings;
+		if (s.endpoint) d.apiVision.endpoint = s.endpoint;
+		if (s.key) d.apiVision.key = s.key;
+		if (s.model) d.apiVision.model = s.model;
+		d.stPresetParams = {
+			temperature: s.temperature,
+			maxTokens: s.maxTokens,
+			topP: s.topP,
+			frequencyPenalty: s.frequencyPenalty,
+			presencePenalty: s.presencePenalty
+		};
+		toast$1("已导入酒馆预设参数");
+	}
+	function saveToSTPreset(config) {
+		var ctx = getSTContextSafe();
+		if (!ctx || !ctx.getPresetManager) {
+			toast$1("无法访问酒馆预设管理器", true);
+			return false;
+		}
+		try {
+			var pm = ctx.getPresetManager();
+			if (pm && pm.writePresetExtensionField) {
+				pm.writePresetExtensionField({
+					path: "outfit_manager",
+					value: config
+				});
+				toast$1("已保存到酒馆当前预设");
+				return true;
+			}
+		} catch (e) {}
+		toast$1("保存到酒馆预设失败", true);
+		return false;
+	}
+	//#endregion
 	//#region src/ai/generator.js
 	/**
 	* generator.js
@@ -1487,11 +1656,15 @@
 			return;
 		}
 		console.log("[OM-AI] styleGuide built, len=" + styleGuide.length);
-		var sysPrompt = "你是穿搭助手，必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n- 只输出穿搭结果，禁止输出或续写任何 <horae>、<content>、<details>、<status> 等状态标签或剧情标签。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述，不能抄已有的例子，不要额外说明。\n输出例子：<甜酷风>\n上衣：黑色露肩印花短款T恤（露锁骨设计）\n下装：灰紫色层层蛋糕蓬蓬短裙（不规则蕾丝纱质裙摆）\n配饰：黑色猫耳发筯、骷髅元素链条choker、金属多层手链、黑色链条腋下包\n鞋袜：黑灰条纹过膝堆堆长袜、厚底黑色圆头松糕鞋";
+		var tpl = getActiveTemplate();
+		var stPreset = d.stPresetParams || null;
+		var temperature = tpl.temperature || (stPreset && stPreset.temperature != null ? stPreset.temperature : .8);
+		var maxTokens = tpl.maxTokens || (stPreset && stPreset.maxTokens != null ? stPreset.maxTokens : 1200);
+		var sysPrompt = tpl.systemPrompt && tpl.systemPrompt.trim() ? tpl.systemPrompt : "你是穿搭助手，必须遵循以下规则：\n- 要根据正文以及前文故事情节判断此时user是否需要更换服饰。\n- 根据user的性格人设，随机生成user的穿搭服饰，需遵循各个风格的穿搭指导，并符合当前人物所处的情境，季节（冬秋季时需要在原来的基础上增衣保暖，春夏季需保持清凉），职业（避免出现在工作时穿着不当的情况）和喜好，避免ooc。发挥想象即可，穿搭风格均不限。\n- 严禁照抄例子，例子仅供穿搭参考。\n- 只输出穿搭结果，禁止输出或续写任何 <horae>、<content>、<details>、<status> 等状态标签或剧情标签。\n输出格式：第一行只输出风格名（从上述参考风格中选一个最符合的），然后换行输出具体穿搭描述，不能抄已有的例子，不要额外说明。\n输出例子：<甜酷风>\n上衣：黑色露肩印花短款T恤（露锁骨设计）\n下装：灰紫色层层蛋糕蓬蓬短裙（不规则蕾丝纱质裙摆）\n配饰：黑色猫耳发筯、骷髅元素链条choker、金属多层手链、黑色链条腋下包\n鞋袜：黑灰条纹过膝堆堆长袜、厚底黑色圆头松糕鞋";
 		var charInfo = _getCharacterInfo(ctx);
 		var pendingInput = _getPendingUserInput();
 		var chatCtx = _getChatContext(ctx);
-		var userPrompt = "=========穿搭风格指导=========\n" + styleGuide + "\n";
+		var userPrompt = (tpl.userPromptPrefix && tpl.userPromptPrefix.trim() ? tpl.userPromptPrefix.trim() + "\n" : "") + "=========穿搭风格指导=========\n" + styleGuide + "\n";
 		userPrompt += "=========当前正文和故事情节=========\n";
 		if (pendingInput) userPrompt += "当前用户输入：\n" + pendingInput + "\n";
 		if (charInfo) userPrompt += charInfo + "\n";
@@ -1514,7 +1687,8 @@
 			prompt: userPrompt,
 			systemPrompt: sysPrompt,
 			quietToLoud: false,
-			responseLength: 1200
+			responseLength: maxTokens,
+			temperature
 		}).then(function(result) {
 			if (done) return;
 			done = true;
@@ -3312,8 +3486,38 @@
 		var imgCount = d.outfits.filter(function(o) {
 			return hasImages(o);
 		}).length;
+		var tplList = getAllTemplates();
+		var activeTpl = getActiveTemplate();
 		var sheet = createSheet([
 			"<div class=\"om-sheet-title\"><i class=\"fa-solid fa-sliders\"></i>设置</div>",
+			"<div class=\"om-sec-title\"><i class=\"fa-solid fa-wand-magic-sparkles\" style=\"margin-right:4px\"></i>提示词预设</div>",
+			"<div class=\"om-setting-row\"><label>当前模板</label><select id=\"om-preset-tpl-sel\">" + tplList.map(function(t) {
+				var isCustom = t.id.indexOf("custom_") === 0;
+				return "<option value=\"" + esc$2(t.id) + "\"" + (t.id === activeTpl.id ? " selected" : "") + ">" + esc$2(t.name) + (isCustom ? " (自定义)" : "") + "</option>";
+			}).join("") + "</select></div>",
+			"<div class=\"om-setting-row\" style=\"display:flex;gap:6px;flex-wrap:wrap\">",
+			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-import-st\" style=\"font-size:.8em\"><i class=\"fa-solid fa-download\"></i> 导入酒馆预设</button>",
+			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-save-st\" style=\"font-size:.8em\"><i class=\"fa-solid fa-upload\"></i> 保存到酒馆预设</button>",
+			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-new-tpl\" style=\"font-size:.8em\"><i class=\"fa-solid fa-plus\"></i> 新建自定义模板</button>",
+			"</div>",
+			"<div id=\"om-preset-custom-form\" style=\"display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px\">",
+			"<div style=\"font-weight:600;font-size:.9em;margin-bottom:8px\">新建自定义模板</div>",
+			"<div class=\"om-setting-row\"><label>模板名称</label><input type=\"text\" id=\"om-ctpl-name\" placeholder=\"如：我的甜美风\" /></div>",
+			"<div class=\"om-setting-row\"><label>系统提示词</label><textarea id=\"om-ctpl-sys\" rows=\"4\" placeholder=\"定义AI角色和输出格式...\"></textarea></div>",
+			"<div class=\"om-setting-row\"><label>用户提示前缀</label><textarea id=\"om-ctpl-user\" rows=\"2\" placeholder=\"如：请为以下场景设计穿搭：\"></textarea></div>",
+			"<div class=\"om-setting-row\"><label>Temperature: <span id=\"om-ctpl-temp-val\">0.8</span></label><input type=\"range\" id=\"om-ctpl-temp\" min=\"0\" max=\"2\" step=\"0.05\" value=\"0.8\" style=\"width:100%\" /></div>",
+			"<div class=\"om-setting-row\"><label>Max Tokens</label><input type=\"number\" id=\"om-ctpl-tokens\" value=\"600\" min=\"50\" max=\"4000\" style=\"background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100px;box-sizing:border-box;font-family:inherit\" /></div>",
+			"<div class=\"om-btn-row\" style=\"margin-top:6px\"><button class=\"om-btn om-btn-safe\" id=\"om-ctpl-save\">保存模板</button><button class=\"om-btn om-btn-outline\" id=\"om-ctpl-cancel\">取消</button></div>",
+			"</div>",
+			"<div id=\"om-preset-edit-area\" style=\"display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px\">",
+			"<div style=\"font-weight:600;font-size:.9em;margin-bottom:8px\"><span id=\"om-ptpl-edit-title\"></span></div>",
+			"<div class=\"om-setting-row\"><label>系统提示词</label><textarea id=\"om-ptpl-sys\" rows=\"4\"></textarea></div>",
+			"<div class=\"om-setting-row\"><label>用户提示前缀</label><textarea id=\"om-ptpl-user\" rows=\"2\"></textarea></div>",
+			"<div class=\"om-setting-row\"><label>Temperature: <span id=\"om-ptpl-temp-val\"></span></label><input type=\"range\" id=\"om-ptpl-temp\" min=\"0\" max=\"2\" step=\"0.05\" style=\"width:100%\" /></div>",
+			"<div class=\"om-setting-row\"><label>Max Tokens</label><input type=\"number\" id=\"om-ptpl-tokens\" min=\"50\" max=\"4000\" style=\"background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100px;box-sizing:border-box;font-family:inherit\" /></div>",
+			"<div class=\"om-btn-row\" style=\"margin-top:6px\"><button class=\"om-btn om-btn-safe\" id=\"om-ptpl-save\">保存修改</button><button class=\"om-btn om-btn-outline\" id=\"om-ptpl-cancel\">取消</button></div>",
+			"</div>",
+			"<div class=\"om-divider\"></div>",
 			"<div class=\"om-sec-title\">发送内容</div>",
 			"<div class=\"om-setting-row\"><label>发送给 AI 的内容类型</label><select id=\"om-mode\">",
 			"<option value=\"text\"" + (d.mode === "text" ? " selected" : "") + ">仅文字描述</option>",
@@ -3379,6 +3583,85 @@
 			var dd = load$1();
 			dd.mode = this.value;
 			save$1(dd);
+		});
+		sheet.querySelector("#om-preset-tpl-sel").addEventListener("change", function() {
+			setActiveTemplate(this.value);
+			toast$1("已切换模板：" + this.options[this.selectedIndex].textContent);
+		});
+		sheet.querySelector("#om-preset-import-st").addEventListener("click", function() {
+			var dd = load$1();
+			applySTPresetToApiConfig(dd);
+			save$1(dd);
+		});
+		sheet.querySelector("#om-preset-save-st").addEventListener("click", function() {
+			saveToSTPreset(load$1().apiVision || {});
+		});
+		sheet.querySelector("#om-preset-new-tpl").addEventListener("click", function() {
+			sheet.querySelector("#om-preset-custom-form").style.display = "block";
+			sheet.querySelector("#om-preset-edit-area").style.display = "none";
+		});
+		sheet.querySelector("#om-ctpl-temp").addEventListener("input", function() {
+			sheet.querySelector("#om-ctpl-temp-val").textContent = this.value;
+		});
+		sheet.querySelector("#om-ctpl-save").addEventListener("click", function() {
+			var name = sheet.querySelector("#om-ctpl-name").value.trim();
+			if (!name) {
+				toast$1("请输入模板名称", true);
+				return;
+			}
+			setActiveTemplate(saveCustomTemplate(name, sheet.querySelector("#om-ctpl-sys").value.trim(), sheet.querySelector("#om-ctpl-user").value.trim(), parseFloat(sheet.querySelector("#om-ctpl-temp").value) || .8, parseInt(sheet.querySelector("#om-ctpl-tokens").value) || 600).id);
+			closeSheet(sheet);
+			openSettingsSheet();
+			toast$1("模板「" + name + "」已保存并选中");
+		});
+		sheet.querySelector("#om-ctpl-cancel").addEventListener("click", function() {
+			sheet.querySelector("#om-preset-custom-form").style.display = "none";
+		});
+		sheet.querySelector("#om-preset-tpl-sel").addEventListener("dblclick", function() {
+			var selId = this.value;
+			var all = getAllTemplates();
+			var tpl = null;
+			for (var i = 0; i < all.length; i++) if (all[i].id === selId) {
+				tpl = all[i];
+				break;
+			}
+			if (!tpl) return;
+			sheet.querySelector("#om-ptpl-edit-title").textContent = "编辑：" + tpl.name;
+			sheet.querySelector("#om-ptpl-sys").value = tpl.systemPrompt || "";
+			sheet.querySelector("#om-ptpl-user").value = tpl.userPromptPrefix || "";
+			sheet.querySelector("#om-ptpl-temp").value = tpl.temperature || .8;
+			sheet.querySelector("#om-ptpl-temp-val").textContent = tpl.temperature || .8;
+			sheet.querySelector("#om-ptpl-tokens").value = tpl.maxTokens || 600;
+			sheet.querySelector("#om-preset-edit-area").style.display = "block";
+			sheet.querySelector("#om-preset-custom-form").style.display = "none";
+			sheet.querySelector("#om-preset-edit-area").dataset.tplId = selId;
+			sheet.querySelector("#om-preset-edit-area").dataset.isCustom = selId.indexOf("custom_") === 0 ? "1" : "";
+		});
+		sheet.querySelector("#om-ptpl-temp").addEventListener("input", function() {
+			sheet.querySelector("#om-ptpl-temp-val").textContent = this.value;
+		});
+		sheet.querySelector("#om-ptpl-save").addEventListener("click", function() {
+			var area = sheet.querySelector("#om-preset-edit-area");
+			var tplId = area.dataset.tplId;
+			if (area.dataset.isCustom === "1") {
+				var dd = load$1();
+				if (dd.customTemplates) {
+					for (var i = 0; i < dd.customTemplates.length; i++) if (dd.customTemplates[i].id === tplId) {
+						dd.customTemplates[i].systemPrompt = sheet.querySelector("#om-ptpl-sys").value.trim();
+						dd.customTemplates[i].userPromptPrefix = sheet.querySelector("#om-ptpl-user").value.trim();
+						dd.customTemplates[i].temperature = parseFloat(sheet.querySelector("#om-ptpl-temp").value) || .8;
+						dd.customTemplates[i].maxTokens = parseInt(sheet.querySelector("#om-ptpl-tokens").value) || 600;
+						break;
+					}
+					save$1(dd);
+				}
+			}
+			closeSheet(sheet);
+			openSettingsSheet();
+			toast$1("模板已更新");
+		});
+		sheet.querySelector("#om-ptpl-cancel").addEventListener("click", function() {
+			sheet.querySelector("#om-preset-edit-area").style.display = "none";
 		});
 		sheet.querySelector("#om-inject-pos").addEventListener("change", function() {
 			var dd = load$1();
