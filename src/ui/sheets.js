@@ -604,6 +604,21 @@ function openSettingsSheet() {
     var sheet = createSheet([
         '<div class="om-sheet-title"><i class="fa-solid fa-sliders"></i>设置</div>',
 
+        '<div class="om-sec-title">发送内容</div>',
+        '<div class="om-setting-row"><label>发送给 AI 的内容类型</label><select id="om-mode">',
+        '<option value="text"' + (d.mode === 'text' ? ' selected' : '') + '>仅文字描述</option>',
+        '<option value="image"' + (d.mode === 'image' ? ' selected' : '') + '>仅图片</option>',
+        '<option value="both"' + (d.mode === 'both' ? ' selected' : '') + '>文字 + 图片</option>',
+        '</select></div>',
+
+        '<div class="om-setting-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="om-auto-roll"' + (!d.autoRollDisabled ? ' checked' : '') + ' /> 启动时自动随机穿搭（从世界书）</label></div>' +
+        '<div class="om-setting-row"><label>注入位置 <span class="om-hint">Gemini/DeepSeek 建议选\"用户消息\"</span></label><select id="om-inject-pos">',
+        '<option value="system"' + (d.injectPosition === 'system' ? ' selected' : '') + '>系统提示末尾</option>',
+        '<option value="context"' + (d.injectPosition === 'context' ? ' selected' : '') + '>上下文末尾</option>',
+        '<option value="user"' + (d.injectPosition === 'user' || !d.injectPosition ? ' selected' : '') + '>用户消息末尾（推荐）</option>',
+        '</select></div>',
+
+        '<div class="om-divider"></div>',
         '<div class="om-sec-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:4px"></i>提示词预设</div>',
         '<div class="om-setting-row"><label>当前模板</label><select id="om-preset-tpl-sel">' + tplOpts + '</select></div>',
         '<div class="om-setting-row" style="display:flex;gap:6px;flex-wrap:wrap">',
@@ -628,21 +643,6 @@ function openSettingsSheet() {
         '<div class="om-setting-row"><label>Max Tokens</label><input type="number" id="om-ptpl-tokens" min="50" max="4000" style="background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.2);border-radius:8px;color:inherit;padding:7px 10px;font-size:.85em;width:100px;box-sizing:border-box;font-family:inherit" /></div>',
         '<div class="om-btn-row" style="margin-top:6px"><button class="om-btn om-btn-safe" id="om-ptpl-save">保存修改</button><button class="om-btn om-btn-outline" id="om-ptpl-cancel">取消</button></div>',
         '</div>',
-
-        '<div class="om-divider"></div>',
-        '<div class="om-sec-title">发送内容</div>',
-        '<div class="om-setting-row"><label>发送给 AI 的内容类型</label><select id="om-mode">',
-        '<option value="text"' + (d.mode === 'text' ? ' selected' : '') + '>仅文字描述</option>',
-        '<option value="image"' + (d.mode === 'image' ? ' selected' : '') + '>仅图片</option>',
-        '<option value="both"' + (d.mode === 'both' ? ' selected' : '') + '>文字 + 图片</option>',
-        '</select></div>',
-
-        '<div class="om-setting-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="om-auto-roll"' + (!d.autoRollDisabled ? ' checked' : '') + ' /> 启动时自动随机穿搭（从世界书）</label></div>' +
-        '<div class="om-setting-row"><label>注入位置 <span class="om-hint">Gemini/DeepSeek 建议选\"用户消息\"</span></label><select id="om-inject-pos">',
-        '<option value="system"' + (d.injectPosition === 'system' ? ' selected' : '') + '>系统提示末尾</option>',
-        '<option value="context"' + (d.injectPosition === 'context' ? ' selected' : '') + '>上下文末尾</option>',
-        '<option value="user"' + (d.injectPosition === 'user' || !d.injectPosition ? ' selected' : '') + '>用户消息末尾（推荐）</option>',
-        '</select></div>',
 
         '<div class="om-divider"></div>',
         '<div class="om-sec-title">单套模式模板 <span class="om-hint">（User选了1套时生效）</span></div>',
@@ -714,10 +714,12 @@ function openSettingsSheet() {
         var dd = load();
         applySTPresetToApiConfig(dd);
         save(dd);
+        toast('已尝试导入酒馆预设参数，请检查 API 配置');
     });
     sheet.querySelector('#om-preset-save-st').addEventListener('click', function () {
         var dd = load();
-        saveToSTPreset(dd.apiVision || {});
+        var ok = saveToSTPreset(dd.apiVision || {});
+        if (!ok) toast('保存失败，请检查酒馆版本是否支持', true);
     });
     // 新建自定义模板
     sheet.querySelector('#om-preset-new-tpl').addEventListener('click', function () {

@@ -6,19 +6,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   build: {
-    lib: {
-      entry: path.resolve(__dirname, 'src/index.js'),
-      name: 'OutfitManager',
-      fileName: () => 'index.js',
-      formats: ['iife'],
-    },
-    outDir: '.',   // output to root
-    emptyOutDir: false,
+    // Use regular app build, not library mode
+    // This produces a plain script that self-executes
     rollupOptions: {
+      input: path.resolve(__dirname, 'src/index.js'),
       output: {
-        // Vite IIFE format already wraps in IIFE, no need for extra wrapper
+        entryFileNames: 'index.js',
+        format: 'iife',
+        name: undefined, // no global variable assignment
       },
     },
+    outDir: 'dist',
+    emptyOutDir: true,
     minify: false,
     sourcemap: false,
   },
