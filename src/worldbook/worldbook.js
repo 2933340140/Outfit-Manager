@@ -55,9 +55,8 @@ export function getDefaultSelectedWorldBookNames(ctx, d) {
 
 export function getSelectedWorldBookNames(ctx, d) {
     var selected = d && Array.isArray(d.selectedWorldBookNames) ? d.selectedWorldBookNames.filter(Boolean) : [];
-    var selectedUU = selected.filter(function (name) { return /uu/i.test(name); });
-    if (selectedUU.length > 0) return selectedUU;
-    return getDefaultSelectedWorldBookNames(ctx, d);
+    if (selected.length > 0) return selected;
+    return getKnownWorldBookNames(ctx);
 }
 
 export function createWorldBookOutfit(ws, idPrefix, idx) {
@@ -161,6 +160,67 @@ export function loadWorldBookByName(ctx, name) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
     }).then(function (r) { return r.json(); });
+}
+
+// ── World book entry toggle ─────────────────────────────────────────
+export function getAllDisabledEntries(data, sourceName) {
+    var entries = [];
+    if (data && Array.isArray(data.entries)) entries = data.entries;
+    else if (data && data.entries && typeof data.entries === 'object') entries = Object.keys(data.entries).map(function (k) { return data.entries[k]; });
+    return entries.filter(function (entry) {
+        if (!entry) return false;
+        if (entry.enabled !== false && entry.disable !== true) return false;
+        var text = (entry.content || '') + '\n' + (entry.comment || '') + '\n' + (Array.isArray(entry.key) ? entry.key.join(' ') : (entry.key || ''));
+        if (isWorldBookMetaEntry(text)) return false;
+        return true;
+    });
+}
+
+export function enableWorldBookEntry(ctx, wbName, entryId) {
+    return loadWorldBookByName(ctx, wbName).then(function (data) {
+        if (!data || !data.entries) return null;
+        var entries = [];
+        if (Array.isArray(data.entries)) entries = data.entries;
+        else if (typeof data.entries === 'object') entries = Object.keys(data.entries).map(function (k) { return data.entries[k]; });
+        var target = null;
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i] && entries[i].id === entryId) { target = entries[i]; break; }
+        }
+        if (!target) return null;
+        target.enabled = true;
+        if (target.disable !== undefined) delete target.disable;
+        if (ctx && typeof ctx.saveWorldInfo === 'function') {
+            return ctx.saveWorldInfo(wbName, data, true).then(function () { return target; });
+        }
+        return fetch('/api/worldinfo/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: wbName, data: data })
+        }).then(function () { return target; });
+    });
+}
+
+export function disableWorldBookEntry(ctx, wbName, entryId) {
+    return loadWorldBookByName(ctx, wbName).then(function (data) {
+        if (!data || !data.entries) return false;
+        var entries = [];
+        if (Array.isArray(data.entries)) entries = data.entries;
+        else if (typeof data.entries === 'object') entries = Object.keys(data.entries).map(function (k) { return data.entries[k]; });
+        var target = null;
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i] && entries[i].id === entryId) { target = entries[i]; break; }
+        }
+        if (!target) return false;
+        target.enabled = false;
+        if (ctx && typeof ctx.saveWorldInfo === 'function') {
+            return ctx.saveWorldInfo(wbName, data, true).then(function () { return true; });
+        }
+        return fetch('/api/worldinfo/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: wbName, data: data })
+        }).then(function () { return true; });
+    });
 }
 
 export function parseWorldBookStyles(data, sourceName) {

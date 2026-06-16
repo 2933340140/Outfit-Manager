@@ -5,7 +5,7 @@ import { injectBtn, updateBtn } from './ui/ui-bar.js';
 import { injectFab } from './ui/fab.js';
 import { loadFromDB, save, getSTContextSafe, hasWardrobeData } from './core/db.js';
 import { autoDetectApiConfig } from './ai/api-detect.js';
-import { getSelectedWorldBookNames, refreshWorldBookStyles, getWorldBookStyles, worldBookStyleMatchesScene, createWorldBookOutfit, materializeWorldBookStyle, setWorldBookStylesLoaded } from './worldbook/worldbook.js';
+import { getSelectedWorldBookNames, getKnownWorldBookNames, refreshWorldBookStyles, getWorldBookStyles, worldBookStyleMatchesScene, createWorldBookOutfit, materializeWorldBookStyle, setWorldBookStylesLoaded, loadWorldBookByName, enableWorldBookEntry, disableWorldBookEntry, getAllDisabledEntries } from './worldbook/worldbook.js';
 import { toast } from './utils/toast.js';
 import { genId } from './utils/helpers.js';
 import { SCENE_DEFS } from './constants.js';
@@ -36,20 +36,44 @@ loadFromDB(function (dd) {
         }
     }
 
-    // Auto-roll on startup
+    // Auto-roll on startup — enable a disabled world book entry
     if ((!dd.activeIds || dd.activeIds.length === 0) && !dd.autoRollDisabled && dd.selectedWorldBookNames.length > 0) {
-        refreshWorldBookStyles(dd.selectedWorldBookNames, function () {
-            var styles = getWorldBookStyles(dd.selectedWorldBookNames);
-            if (styles.length > 0) {
-                var pick = styles[Math.floor(Math.random() * styles.length)];
-                var virtual = createWorldBookOutfit(pick, 'wb', 0);
+        var startupCtx = getSTContextSafe();
+        var startupWBNames = dd.selectedWorldBookNames.slice();
+        // Pick a random WB
+        var startupWB = startupWBNames[Math.floor(Math.random() * startupWBNames.length)];
+        loadWorldBookByName(startupCtx, startupWB).then(function (data) {
+            var disabledEntries = getAllDisabledEntries(data, startupWB);
+            if (disabledEntries.length === 0) return;
+            var pickedEntry = disabledEntries[Math.floor(Math.random() * disabledEntries.length)];
+            return enableWorldBookEntry(startupCtx, startupWB, pickedEntry.id).then(function (enabledEntry) {
+                if (!enabledEntry) return;
+                dd = load();
+                dd.lastAutoEnabledEntry = { wbName: startupWB, entryId: pickedEntry.id };
+                var entryName = pickedEntry.comment || (Array.isArray(pickedEntry.key) ? pickedEntry.key.join(', ') : pickedEntry.key || '世界书穿搭');
+                var virtual = { id: 'wb_entry_' + pickedEntry.id + '_' + Date.now(), name: entryName, category: '世界书', type: 'outfit', style: '', season: '', sceneTag: '', description: pickedEntry.content || '', images: [], isVirtual: true, source: startupWB };
                 dd.virtualOutfits[virtual.id] = virtual;
                 dd.activeIds = [virtual.id];
                 save(dd);
                 setTimeout(function () {
-                    toast('今日穿搭：「' + virtual.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）');
+                    toast('今日穿搭：「' + entryName + '」（来自 ' + startupWB + '）');
                 }, 3500);
-            }
+            });
+        }).catch(function () {
+            // Fallback: refresh and pick from cache
+            refreshWorldBookStyles(dd.selectedWorldBookNames, function () {
+                var styles = getWorldBookStyles(dd.selectedWorldBookNames);
+                if (styles.length > 0) {
+                    var pick = styles[Math.floor(Math.random() * styles.length)];
+                    var virtual = createWorldBookOutfit(pick, 'wb', 0);
+                    dd.virtualOutfits[virtual.id] = virtual;
+                    dd.activeIds = [virtual.id];
+                    save(dd);
+                    setTimeout(function () {
+                        toast('今日穿搭：「' + virtual.name + '」（' + (pick.style || '') + '·' + (pick.scene || '') + '）');
+                    }, 3500);
+                }
+            });
         });
     } else if (dd.activeIds && dd.activeIds.length > 0) {
         // Show existing active outfit reminder

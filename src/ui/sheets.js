@@ -12,7 +12,7 @@ import { renderGrid, renderCatbar, getCurCat, setCurCat, getCurType, setCurType,
 import { renderBottomStatus } from './bottom-status.js';
 import { updateBtn } from './ui-bar.js';
 import { injectFab } from './fab.js';
-import { getWorldBookStyles, getSelectedWorldBookNames, refreshWorldBookStyles, getWorldBookStyleCache, createWorldBookOutfit, worldBookStyleMatchesScene, materializeWorldBookStyle, setWorldBookStylesLoaded } from '../worldbook/worldbook.js';
+import { getWorldBookStyles, getSelectedWorldBookNames, getKnownWorldBookNames, refreshWorldBookStyles, getWorldBookStyleCache, createWorldBookOutfit, worldBookStyleMatchesScene, materializeWorldBookStyle, setWorldBookStylesLoaded, loadWorldBookByName, enableWorldBookEntry, disableWorldBookEntry, getAllDisabledEntries } from '../worldbook/worldbook.js';
 import { parseAutoTagResult } from '../ai/auto-tag.js';
 import { _cleanOutfitResult, tryGenerateAIDescription } from '../ai/generator.js';
 import { callVisionAPI, openModelPicker, batchGenerateDescriptions, generateSingleDescription, fetchModelList, normalizeEndpoint } from '../ai/vision.js';
@@ -215,9 +215,10 @@ function openRandomRoll() {
             var ctx = getSTContextSafe();
             var dd = load();
             var selectedDefaults = getSelectedWorldBookNames(ctx, dd);
-            var wbNames = selectedDefaults.slice();
+            var allWBNames = getKnownWorldBookNames(ctx);
+            var wbNames = allWBNames.length > 0 ? allWBNames : selectedDefaults.slice();
             if (wbNames.length === 0) {
-                container.innerHTML = '<span style="opacity:.5">没有找到默认 uu 世界书，请先在酒馆中创建或选择世界书。</span>';
+                container.innerHTML = '<span style="opacity:.5">酒馆中还没有世界书，请先在酒馆中创建世界书。</span>';
                 return;
             }
             var selected = selectedDefaults.slice();
@@ -263,7 +264,90 @@ function openRandomRoll() {
             }
         } catch(e) { container.innerHTML = '<span style="opacity:.5">加载世界书失败</span>'; }
     })();
-    function doRoll() { var ss = sheet.querySelector('#om-roll-style').value; var sn = sheet.querySelector('#om-roll-season').value; var sc = sheet.querySelector('#om-roll-scene').value; var sm = sheet.querySelector('#om-roll-mode').value; var useWBOnly = sheet.querySelector('#om-roll-wb-only') ? sheet.querySelector('#om-roll-wb-only').checked : false; var pool = useWBOnly ? [] : allOutfits.slice(); var wbList = sheet.querySelector('#om-roll-wb-list'); if (wbList) { var wbChecks = wbList.querySelectorAll('input[type=checkbox].om-roll-wb-book:checked'); wbChecks.forEach(function(cb) { var wbName = cb.value; if (worldBookStyleCache[wbName]) { worldBookStyleCache[wbName].forEach(function(ws, wi) { pool.push(createWorldBookOutfit(ws, 'wb_dyn_' + wbName.replace(/[^a-zA-Z0-9]/g,'_'), wi)); }); }});} var f = pool.filter(function (o) { if (ss && (!o.style || o.style.trim() !== ss)) return false; if (sn && (!o.season || o.season.trim() !== sn)) return false; if (sc && (!o.sceneTag || o.sceneTag.trim() !== sc)) return false; return true; }); if (f.length === 0) { toast('没有匹配的穿搭', true); return; } var r = { outfits: [], items: [] }; var fo = f.filter(function (o) { return !o.type || o.type === 'outfit'; }); var fi = f.filter(function (o) { return o.type === 'item'; }); if (sm === 'outfit') { if (fo.length === 0) { toast('没有匹配的套装', true); return; } r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; } else if (sm === 'items') { var g = {}; fi.forEach(function (it) { var c = it.category || '其他'; if (!g[c]) g[c] = []; g[c].push(it); }); for (var k in g) r.items.push(g[k][Math.floor(Math.random() * g[k].length)]); } else { if (fo.length > 0) r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; var g2 = {}; fi.forEach(function (it) { var c2 = it.category || '其他'; if (!g2[c2]) g2[c2] = []; g2[c2].push(it); }); for (var k2 in g2) r.items.push(g2[k2][Math.floor(Math.random() * g2[k2].length)]); } lastResult = r; var h = '<div>'; if (r.outfits.length > 0) { h += '<div style="font-weight:600;margin-bottom:8px">套装</div>'; r.outfits.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:8px;background:rgba(127,127,127,.06);border-radius:8px">'; if (getFirstImage(o)) h += '<img src="' + getFirstImage(o) + '" style="width:80px;height:106px;object-fit:cover;border-radius:6px;flex-shrink:0" />'; h += '<div style="min-width:0"><div style="font-weight:600;margin-bottom:2px">' + esc(o.name) + '</div>'; if (o.style) h += '<div style="font-size:.8em;opacity:.7">风格：' + esc(o.style) + '</div>'; if (o.season) h += '<div style="font-size:.8em;opacity:.7">季节：' + esc(o.season) + '</div>'; if (o.sceneTag) h += '<div style="font-size:.8em;opacity:.7">场景：' + esc(o.sceneTag) + '</div>'; if (o.description) h += '<div style="font-size:.82em;opacity:.85;margin-top:6px;line-height:1.6;padding:8px;background:rgba(127,127,127,.05);border-radius:6px;white-space:pre-wrap">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } if (r.items.length > 0) { h += '<div style="font-weight:600;margin:8px 0">单品</div>'; r.items.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:6px 8px;background:rgba(127,127,127,.04);border-radius:6px">'; if (getFirstImage(o)) h += '<img src="' + getFirstImage(o) + '" style="width:60px;height:80px;object-fit:cover;border-radius:4px;flex-shrink:0" />'; h += '<div><span style="font-size:.75em;opacity:.5">' + esc(o.category || '其他') + '</span><br>' + esc(o.name) + '</div>'; if (o.description) h += '<div style="font-size:.75em;opacity:.7;margin-top:2px;line-height:1.4">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } h += '</div>'; sheet.querySelector('#om-roll-result').innerHTML = h; sheet.querySelector('#om-roll-result-area').style.display = ''; }
+    function doRoll() {
+        var ctx = getSTContextSafe();
+        var dd = load();
+        var wbList = sheet.querySelector('#om-roll-wb-list');
+        var wbChecks = wbList ? wbList.querySelectorAll('input[type=checkbox].om-roll-wb-book:checked') : [];
+        var checkedWBNames = [];
+        wbChecks.forEach(function(cb) { checkedWBNames.push(cb.value); });
+
+        // ── World book entry toggle mode ──
+        if (checkedWBNames.length > 0) {
+            // 1. Disable previous auto-enabled entry
+            if (dd.lastAutoEnabledEntry) {
+                disableWorldBookEntry(ctx, dd.lastAutoEnabledEntry.wbName, dd.lastAutoEnabledEntry.entryId).catch(function(){});
+                dd.lastAutoEnabledEntry = null;
+                save(dd);
+            }
+
+            // 2. Pick a random checked WB
+            var pickedWB = checkedWBNames[Math.floor(Math.random() * checkedWBNames.length)];
+
+            // 3. Load it and find disabled entries
+            loadWorldBookByName(ctx, pickedWB).then(function(data) {
+                var disabledEntries = getAllDisabledEntries(data, pickedWB);
+                if (disabledEntries.length === 0) {
+                    toast('「' + pickedWB + '」中没有关闭的条目', true);
+                    // Fall back to original logic
+                    doRollFallback();
+                    return;
+                }
+                // 4. Randomly pick one disabled entry
+                var pickedEntry = disabledEntries[Math.floor(Math.random() * disabledEntries.length)];
+
+                // 5. Enable it
+                enableWorldBookEntry(ctx, pickedWB, pickedEntry.id).then(function(enabledEntry) {
+                    if (!enabledEntry) { toast('启用世界书条目失败', true); return; }
+
+                    // 6. Record
+                    dd = load();
+                    dd.lastAutoEnabledEntry = { wbName: pickedWB, entryId: pickedEntry.id };
+                    save(dd);
+
+                    // 7. Display result
+                    var entryName = pickedEntry.comment || (Array.isArray(pickedEntry.key) ? pickedEntry.key.join(', ') : pickedEntry.key || '未命名');
+                    var entryContent = pickedEntry.content || '（无内容）';
+                    var h = '<div style="padding:4px 0">';
+                    h += '<div style="font-size:.85em;opacity:.6;margin-bottom:4px">来自 <strong>' + esc(pickedWB) + '</strong></div>';
+                    h += '<div style="font-weight:600;font-size:1em;margin-bottom:8px">' + esc(entryName) + '</div>';
+                    h += '<div style="background:rgba(127,127,127,.06);border-radius:8px;padding:12px;font-size:.85em;line-height:1.7;white-space:pre-wrap">' + esc(entryContent) + '</div>';
+                    h += '</div>';
+
+                    // Create virtual outfit from entry content
+                    var virtualOutfit = {
+                        id: 'wb_entry_' + pickedEntry.id + '_' + Date.now(),
+                        name: entryName,
+                        category: '世界书',
+                        type: 'outfit',
+                        style: '',
+                        season: '',
+                        sceneTag: '',
+                        description: entryContent,
+                        images: [],
+                        isVirtual: true,
+                        source: pickedWB
+                    };
+
+                    lastResult = { outfits: [virtualOutfit], items: [] };
+                    sheet.querySelector('#om-roll-result').innerHTML = h;
+                    sheet.querySelector('#om-roll-result-area').style.display = '';
+                    toast('已从「' + pickedWB + '」启用穿搭：' + entryName);
+                }).catch(function(e) {
+                    toast('启用世界书条目失败：' + e.message, true);
+                });
+            }).catch(function(e) {
+                toast('加载世界书失败：' + e.message, true);
+            });
+            return;
+        }
+
+        // ── Fallback: original random logic ──
+        doRollFallback();
+    }
+
+    // ── Original random logic (no WB checked) ──
+    function doRollFallback() { var ss = sheet.querySelector('#om-roll-style').value; var sn = sheet.querySelector('#om-roll-season').value; var sc = sheet.querySelector('#om-roll-scene').value; var sm = sheet.querySelector('#om-roll-mode').value; var useWBOnly = sheet.querySelector('#om-roll-wb-only') ? sheet.querySelector('#om-roll-wb-only').checked : false; var pool = useWBOnly ? [] : allOutfits.slice(); var wbList2 = sheet.querySelector('#om-roll-wb-list'); if (wbList2) { var wbChecks2 = wbList2.querySelectorAll('input[type=checkbox].om-roll-wb-book:checked'); wbChecks2.forEach(function(cb) { var wbName = cb.value; if (worldBookStyleCache[wbName]) { worldBookStyleCache[wbName].forEach(function(ws, wi) { pool.push(createWorldBookOutfit(ws, 'wb_dyn_' + wbName.replace(/[^a-zA-Z0-9]/g,'_'), wi)); }); }});} var f = pool.filter(function (o) { if (ss && (!o.style || o.style.trim() !== ss)) return false; if (sn && (!o.season || o.season.trim() !== sn)) return false; if (sc && (!o.sceneTag || o.sceneTag.trim() !== sc)) return false; return true; }); if (f.length === 0) { toast('没有匹配的穿搭', true); return; } var r = { outfits: [], items: [] }; var fo = f.filter(function (o) { return !o.type || o.type === 'outfit'; }); var fi = f.filter(function (o) { return o.type === 'item'; }); if (sm === 'outfit') { if (fo.length === 0) { toast('没有匹配的套装', true); return; } r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; } else if (sm === 'items') { var g = {}; fi.forEach(function (it) { var c = it.category || '其他'; if (!g[c]) g[c] = []; g[c].push(it); }); for (var k in g) r.items.push(g[k][Math.floor(Math.random() * g[k].length)]); } else { if (fo.length > 0) r.outfits = [fo[Math.floor(Math.random() * fo.length)]]; var g2 = {}; fi.forEach(function (it) { var c2 = it.category || '其他'; if (!g2[c2]) g2[c2] = []; g2[c2].push(it); }); for (var k2 in g2) r.items.push(g2[k2][Math.floor(Math.random() * g2[k2].length)]); } lastResult = r; var h = '<div>'; if (r.outfits.length > 0) { h += '<div style="font-weight:600;margin-bottom:8px">套装</div>'; r.outfits.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:8px;background:rgba(127,127,127,.06);border-radius:8px">'; if (getFirstImage(o)) h += '<img src="' + getFirstImage(o) + '" style="width:80px;height:106px;object-fit:cover;border-radius:6px;flex-shrink:0" />'; h += '<div style="min-width:0"><div style="font-weight:600;margin-bottom:2px">' + esc(o.name) + '</div>'; if (o.style) h += '<div style="font-size:.8em;opacity:.7">风格：' + esc(o.style) + '</div>'; if (o.season) h += '<div style="font-size:.8em;opacity:.7">季节：' + esc(o.season) + '</div>'; if (o.sceneTag) h += '<div style="font-size:.8em;opacity:.7">场景：' + esc(o.sceneTag) + '</div>'; if (o.description) h += '<div style="font-size:.82em;opacity:.85;margin-top:6px;line-height:1.6;padding:8px;background:rgba(127,127,127,.05);border-radius:6px;white-space:pre-wrap">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } if (r.items.length > 0) { h += '<div style="font-weight:600;margin:8px 0">单品</div>'; r.items.forEach(function (o) { h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:6px 8px;background:rgba(127,127,127,.04);border-radius:6px">'; if (getFirstImage(o)) h += '<img src="' + getFirstImage(o) + '" style="width:60px;height:80px;object-fit:cover;border-radius:4px;flex-shrink:0" />'; h += '<div><span style="font-size:.75em;opacity:.5">' + esc(o.category || '其他') + '</span><br>' + esc(o.name) + '</div>'; if (o.description) h += '<div style="font-size:.75em;opacity:.7;margin-top:2px;line-height:1.4">' + esc(o.description) + '</div>'; h += '</div></div>'; }); } h += '</div>'; sheet.querySelector('#om-roll-result').innerHTML = h; sheet.querySelector('#om-roll-result-area').style.display = ''; }
     sheet.querySelector('#om-roll-go').addEventListener('click', doRoll);
     sheet.querySelector('#om-roll-cancel').addEventListener('click', function () { closeSheet(sheet); });
     sheet.querySelector('#om-roll-apply').addEventListener('click', function () { if (!lastResult) return; var dd = load(); dd.activeIds = []; if (dd.chars) for (var cn in dd.chars) dd.chars[cn].activeIds = []; var ids = []; lastResult.outfits.forEach(function (o) { if (o.isVirtual) { var no = { id: genId(), name: o.name, category: o.category || '', type: 'outfit', style: o.style || '', season: o.season || '', sceneTag: o.sceneTag || '', description: o.description || '', images: [], createdAt: Date.now(), isVirtual: true }; dd.virtualOutfits[no.id] = no; ids.push(no.id); } else { ids.push(o.id); } }); lastResult.items.forEach(function (o) { ids.push(o.id); }); if (dd.currentView === 'char' && dd.currentChar) getCharData(dd, dd.currentChar).activeIds = ids; else dd.activeIds = ids; save(dd); closeSheet(sheet); toast('已应用！(' + ids.length + '件)'); renderGrid(); renderBottomStatus(); updateBtn(); });

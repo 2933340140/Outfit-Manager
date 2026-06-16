@@ -59,6 +59,7 @@ export function def() {
         itemMultiTemplate: '[User穿搭+单品]\n{{outfits}}\n\n[单品衣柜]\n{{items}}\n（以上为当前穿搭和可用单品库存，禁止编造以上之外的服装。）',
         debug: false,
         useMainApi: true,
+        lastAutoEnabledEntry: null,
         apiVision: {
             endpoint: '',
             key: '',
