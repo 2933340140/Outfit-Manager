@@ -9,12 +9,12 @@
 			"@keyframes om-fadein{from{opacity:0}to{opacity:1}}",
 			"@keyframes om-sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}",
 			"@keyframes om-popin{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}",
-			".om-light{--om-bg:#ffffff;--om-bg2:#f5f5f7;--om-text:#1a1a2e;--om-border:#d1d1d6;--om-card-bg:#f5f5f7;--om-head-bg:rgba(255,255,255,.8);}",
+			".om-light{--om-bg:#f2f2f5 !important;--om-bg2:#e8e8ec !important;--om-text:#1a1a1a !important;--om-border:#c8c8ce !important;--om-card-bg:#e8e8ec !important;--om-head-bg:#eaeaed !important;}",
 			".om-dark{--om-bg:#16161a;--om-bg2:#1e1e24;--om-text:#eee;--om-border:rgba(255,255,255,.08);--om-card-bg:rgba(255,255,255,.05);--om-head-bg:rgba(0,0,0,.3);}",
 			".om-overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;z-index:2147483647;",
 			"background:var(--om-bg,var(--SmartThemeBackgroundColor,#16161a));",
 			"color:var(--om-text,var(--SmartThemeBodyColor,#eee));",
-			"display:flex;flex-direction:column;color:var(--SmartThemeBodyColor,#eee);",
+			"display:flex;flex-direction:column;",
 			"animation:om-fadein .18s ease;font-size:14px;}",
 			".om-box{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;}",
 			".om-head{display:flex;align-items:center;gap:8px;padding:12px 15px;flex-shrink:0;",
@@ -379,6 +379,7 @@
 			itemMultiTemplate: "[User穿搭+单品]\n{{outfits}}\n\n[单品衣柜]\n{{items}}\n（以上为当前穿搭和可用单品库存，禁止编造以上之外的服装。）",
 			debug: false,
 			useMainApi: true,
+			lastAutoEnabledEntry: null,
 			apiVision: {
 				endpoint: "",
 				key: "",
@@ -437,16 +438,52 @@
 	//#region src/ai/api-detect.js
 	function autoDetectApiConfig(d) {
 		try {
-			if (typeof SillyTavern !== "undefined" && SillyTavern.getContext) {
-				var ctx = SillyTavern.getContext();
-				if (ctx.chatCompletionSettings) {
-					var cs = ctx.chatCompletionSettings;
-					if (cs.api_url) d.apiVision.endpoint = cs.api_url;
-					if (cs.api_key) d.apiVision.key = cs.api_key;
-					if (cs.model) d.apiVision.model = cs.model;
-				}
+			if (typeof SillyTavern === "undefined" || !SillyTavern.getContext) return;
+			var ctx = SillyTavern.getContext();
+			var mainApi = ctx.mainApi || "";
+			if (mainApi === "openai") {
+				var cs = ctx.chatCompletionSettings || {};
+				if (cs.chat_completion_source === "custom" && cs.custom_url) d.apiVision.endpoint = cs.custom_url;
+				else if (cs.reverse_proxy) d.apiVision.endpoint = cs.reverse_proxy;
+				if (ctx.getChatCompletionModel) try {
+					d.apiVision.model = ctx.getChatCompletionModel(cs) || "";
+				} catch (e) {}
+				d._detectedApiType = "chat_completion";
+				d._detectedSource = cs.chat_completion_source || "openai";
+			} else if (mainApi === "textgenerationwebui") {
+				var ts = ctx.textCompletionSettings || {};
+				if (ctx.getTextGenServer) try {
+					d.apiVision.endpoint = ctx.getTextGenServer() || "";
+				} catch (e) {}
+				var modelField = getModelFieldForTextGenType(ts.type);
+				if (modelField && ts[modelField]) d.apiVision.model = ts[modelField];
+				else if (ts.custom_model) d.apiVision.model = ts.custom_model;
+				d._detectedApiType = "text_completion";
+				d._detectedSource = ts.type || "unknown";
+			} else if (mainApi === "novel") {
+				d._detectedApiType = "novelai";
+				d._detectedSource = "novel";
+			} else if (mainApi === "kobold" || mainApi === "koboldhorde") {
+				d._detectedApiType = "kobold";
+				d._detectedSource = mainApi;
 			}
 		} catch (e) {}
+	}
+	function getModelFieldForTextGenType(type) {
+		return {
+			mancer: "mancer_model",
+			vllm: "vllm_model",
+			aphrodite: "aphrodite_model",
+			tabby: "tabby_model",
+			togetherai: "togetherai_model",
+			llamacpp: "llamacpp_model",
+			ollama: "ollama_model",
+			infermaticai: "infermaticai_model",
+			dreamgen: "dreamgen_model",
+			openrouter: "openrouter_model",
+			featherless: "featherless_model",
+			generic: "generic_model"
+		}[type] || null;
 	}
 	//#endregion
 	//#region src/core/db.js
@@ -667,7 +704,7 @@
 			padding: "8px 18px",
 			borderRadius: "8px",
 			fontSize: "14px",
-			zIndex: "100002",
+			zIndex: "2147483647",
 			opacity: "0",
 			transition: "opacity .3s",
 			pointerEvents: "none",
@@ -1050,23 +1087,10 @@
 			return [];
 		}
 	}
-	function getDefaultSelectedWorldBookNames(ctx, d) {
-		var uuNames = getKnownWorldBookNames(ctx).filter(function(name) {
-			return /uu/i.test(name);
-		});
-		if (uuNames.length > 0) return uuNames;
-		var activeNames = getActiveWorldBookNames(ctx, d);
-		var activeUU = activeNames.filter(function(name) {
-			return /uu/i.test(name);
-		});
-		return activeUU.length > 0 ? activeUU : activeNames;
-	}
 	function getSelectedWorldBookNames(ctx, d) {
-		var selectedUU = (d && Array.isArray(d.selectedWorldBookNames) ? d.selectedWorldBookNames.filter(Boolean) : []).filter(function(name) {
-			return /uu/i.test(name);
-		});
-		if (selectedUU.length > 0) return selectedUU;
-		return getDefaultSelectedWorldBookNames(ctx, d);
+		var selected = d && Array.isArray(d.selectedWorldBookNames) ? d.selectedWorldBookNames.filter(Boolean) : [];
+		if (selected.length > 0) return selected;
+		return getKnownWorldBookNames(ctx);
 	}
 	function createWorldBookOutfit(ws, idPrefix, idx) {
 		var mw = materializeWorldBookStyle(ws);
@@ -1200,6 +1224,80 @@
 			body: JSON.stringify({ name })
 		}).then(function(r) {
 			return r.json();
+		});
+	}
+	function getAllDisabledEntries(data, sourceName) {
+		var entries = [];
+		if (data && Array.isArray(data.entries)) entries = data.entries;
+		else if (data && data.entries && typeof data.entries === "object") entries = Object.keys(data.entries).map(function(k) {
+			return data.entries[k];
+		});
+		return entries.filter(function(entry) {
+			if (!entry) return false;
+			if (entry.enabled !== false && entry.disable !== true) return false;
+			if (isWorldBookMetaEntry((entry.content || "") + "\n" + (entry.comment || "") + "\n" + (Array.isArray(entry.key) ? entry.key.join(" ") : entry.key || ""))) return false;
+			return true;
+		});
+	}
+	function enableWorldBookEntry(ctx, wbName, entryId) {
+		return loadWorldBookByName(ctx, wbName).then(function(data) {
+			if (!data || !data.entries) return null;
+			var entries = [];
+			if (Array.isArray(data.entries)) entries = data.entries;
+			else if (typeof data.entries === "object") entries = Object.keys(data.entries).map(function(k) {
+				return data.entries[k];
+			});
+			var target = null;
+			for (var i = 0; i < entries.length; i++) if (entries[i] && entries[i].id === entryId) {
+				target = entries[i];
+				break;
+			}
+			if (!target) return null;
+			target.enabled = true;
+			if (target.disable !== void 0) delete target.disable;
+			if (ctx && typeof ctx.saveWorldInfo === "function") return ctx.saveWorldInfo(wbName, data, true).then(function() {
+				return target;
+			});
+			return fetch("/api/worldinfo/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: wbName,
+					data
+				})
+			}).then(function() {
+				return target;
+			});
+		});
+	}
+	function disableWorldBookEntry(ctx, wbName, entryId) {
+		return loadWorldBookByName(ctx, wbName).then(function(data) {
+			if (!data || !data.entries) return false;
+			var entries = [];
+			if (Array.isArray(data.entries)) entries = data.entries;
+			else if (typeof data.entries === "object") entries = Object.keys(data.entries).map(function(k) {
+				return data.entries[k];
+			});
+			var target = null;
+			for (var i = 0; i < entries.length; i++) if (entries[i] && entries[i].id === entryId) {
+				target = entries[i];
+				break;
+			}
+			if (!target) return false;
+			target.enabled = false;
+			if (ctx && typeof ctx.saveWorldInfo === "function") return ctx.saveWorldInfo(wbName, data, true).then(function() {
+				return true;
+			});
+			return fetch("/api/worldinfo/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: wbName,
+					data
+				})
+			}).then(function() {
+				return true;
+			});
 		});
 	}
 	function parseWorldBookStyles(data, sourceName) {
@@ -1461,18 +1559,45 @@
 			systemPrompt: "",
 			imported: false
 		};
-		if (ctx.chatCompletionSettings) {
-			var cs = ctx.chatCompletionSettings;
-			result.apiSettings = {
-				endpoint: cs.api_url || "",
-				key: cs.api_key || "",
-				model: cs.model || "",
-				temperature: cs.temperature !== void 0 ? cs.temperature : null,
-				maxTokens: cs.openai_max_tokens || cs.max_tokens || null,
-				topP: cs.top_p !== void 0 ? cs.top_p : null,
-				frequencyPenalty: cs.frequency_penalty !== void 0 ? cs.frequency_penalty : null,
-				presencePenalty: cs.presence_penalty !== void 0 ? cs.presence_penalty : null
-			};
+		var mainApi = ctx.mainApi || "";
+		if (mainApi === "openai") {
+			var cs = ctx.chatCompletionSettings || {};
+			var url = "";
+			if (cs.chat_completion_source === "custom") url = cs.custom_url || "";
+			else if (cs.reverse_proxy) url = cs.reverse_proxy || "";
+			var model = "";
+			if (ctx.getChatCompletionModel) try {
+				model = ctx.getChatCompletionModel(cs) || "";
+			} catch (e) {}
+			if (url || model) {
+				result.apiSettings = {
+					endpoint: url,
+					key: "",
+					model,
+					temperature: cs.temperature !== void 0 ? cs.temperature : null,
+					maxTokens: cs.max_tokens || null,
+					topP: cs.top_p !== void 0 ? cs.top_p : null,
+					frequencyPenalty: cs.frequency_penalty !== void 0 ? cs.frequency_penalty : null,
+					presencePenalty: cs.presence_penalty !== void 0 ? cs.presence_penalty : null
+				};
+				result.imported = true;
+				result.apiType = "Chat Completion (" + (cs.chat_completion_source || "openai") + ")";
+			}
+		} else if (mainApi === "textgenerationwebui") {
+			var ts = ctx.textCompletionSettings || {};
+			var endpoint = "";
+			if (ctx.getTextGenServer) try {
+				endpoint = ctx.getTextGenServer() || "";
+			} catch (e) {}
+			if (endpoint) {
+				result.apiSettings = {
+					endpoint,
+					key: "",
+					model: ""
+				};
+				result.imported = true;
+				result.apiType = "Text Completion (" + (ts.type || "unknown") + ")";
+			}
 		}
 		try {
 			if (ctx.getPresetManager) {
@@ -1526,8 +1651,15 @@
 	}
 	function applySTPresetToApiConfig(d) {
 		var stPreset = importSTPreset();
-		if (!stPreset || !stPreset.apiSettings) return;
-		var s = stPreset.apiSettings;
+		if (!stPreset) {
+			toast$1("无法访问酒馆上下文", true);
+			return false;
+		}
+		var s = stPreset.apiSettings || {};
+		if (!s.endpoint && !s.key && !s.model) {
+			toast$1("未检测到酒馆 API 配置，请手动填写下方的 API 地址和 Key", true);
+			return false;
+		}
 		if (s.endpoint) d.apiVision.endpoint = s.endpoint;
 		if (s.key) d.apiVision.key = s.key;
 		if (s.model) d.apiVision.model = s.model;
@@ -1538,7 +1670,8 @@
 			frequencyPenalty: s.frequencyPenalty,
 			presencePenalty: s.presencePenalty
 		};
-		toast$1("已导入酒馆预设参数");
+		toast$1("已导入酒馆 API 配置：" + (s.model || s.endpoint || "OK"));
+		return true;
 	}
 	function saveToSTPreset(config) {
 		var ctx = getSTContextSafe();
@@ -1559,6 +1692,56 @@
 		} catch (e) {}
 		toast$1("保存到酒馆预设失败", true);
 		return false;
+	}
+	function importExternalPreset(file, callback) {
+		var reader = new FileReader();
+		reader.onload = function(e) {
+			try {
+				var result = parsePresetFile(JSON.parse(e.target.result));
+				if (!result) {
+					toast$1("无法解析预设文件", true);
+					if (callback) callback(null);
+					return;
+				}
+				var tpl = saveCustomTemplate(result.name || "导入的预设", result.systemPrompt || "", result.userPromptPrefix || "", result.temperature || .8, result.maxTokens || 600);
+				setActiveTemplate(tpl.id);
+				toast$1("已导入预设：" + tpl.name);
+				if (callback) callback(tpl);
+			} catch (err) {
+				toast$1("预设文件格式错误：" + err.message, true);
+				if (callback) callback(null);
+			}
+		};
+		reader.onerror = function() {
+			toast$1("读取文件失败", true);
+			if (callback) callback(null);
+		};
+		reader.readAsText(file);
+	}
+	function parsePresetFile(preset) {
+		if (!preset || typeof preset !== "object") return null;
+		var result = {
+			name: "",
+			systemPrompt: "",
+			userPromptPrefix: "",
+			temperature: .8,
+			maxTokens: 600
+		};
+		result.name = preset.name || preset.preset_name || preset.title || "导入的预设";
+		if (preset.temperature !== void 0) result.temperature = parseFloat(preset.temperature) || .8;
+		if (preset.max_tokens !== void 0) result.maxTokens = parseInt(preset.max_tokens) || 600;
+		else if (preset.openai_max_tokens !== void 0) result.maxTokens = parseInt(preset.openai_max_tokens) || 600;
+		if (preset.system_prompt) result.systemPrompt = preset.system_prompt;
+		else if (preset.systemPrompt) result.systemPrompt = preset.systemPrompt;
+		else if (preset.content && typeof preset.content === "string") result.systemPrompt = preset.content;
+		if (preset.main_prompt && !result.systemPrompt) result.systemPrompt = preset.main_prompt;
+		if (preset.nsfw_first && !result.systemPrompt) result.systemPrompt = preset.nsfw_first;
+		if (preset.enhance_definitions_prompt) result.userPromptPrefix = preset.enhance_definitions_prompt;
+		if (preset.prompt_template) {
+			var tpl = preset.prompt_template;
+			if (tpl.system_prompt && tpl.system_prompt.content) result.systemPrompt = tpl.system_prompt.content;
+		}
+		return result;
 	}
 	//#endregion
 	//#region src/ai/generator.js
@@ -2856,9 +3039,10 @@
 				var ctx = getSTContextSafe();
 				var dd = load$1();
 				var selectedDefaults = getSelectedWorldBookNames(ctx, dd);
-				var wbNames = selectedDefaults.slice();
+				var allWBNames = getKnownWorldBookNames(ctx);
+				var wbNames = allWBNames.length > 0 ? allWBNames : selectedDefaults.slice();
 				if (wbNames.length === 0) {
-					container.innerHTML = "<span style=\"opacity:.5\">没有找到默认 uu 世界书，请先在酒馆中创建或选择世界书。</span>";
+					container.innerHTML = "<span style=\"opacity:.5\">酒馆中还没有世界书，请先在酒馆中创建世界书。</span>";
 					return;
 				}
 				var selected = selectedDefaults.slice();
@@ -2904,13 +3088,84 @@
 			}
 		})();
 		function doRoll() {
+			var ctx = getSTContextSafe();
+			var dd = load$1();
+			var wbList = sheet.querySelector("#om-roll-wb-list");
+			var wbChecks = wbList ? wbList.querySelectorAll("input[type=checkbox].om-roll-wb-book:checked") : [];
+			var checkedWBNames = [];
+			wbChecks.forEach(function(cb) {
+				checkedWBNames.push(cb.value);
+			});
+			if (checkedWBNames.length > 0) {
+				if (dd.lastAutoEnabledEntry) {
+					disableWorldBookEntry(ctx, dd.lastAutoEnabledEntry.wbName, dd.lastAutoEnabledEntry.entryId).catch(function() {});
+					dd.lastAutoEnabledEntry = null;
+					save$1(dd);
+				}
+				var pickedWB = checkedWBNames[Math.floor(Math.random() * checkedWBNames.length)];
+				loadWorldBookByName(ctx, pickedWB).then(function(data) {
+					var disabledEntries = getAllDisabledEntries(data, pickedWB);
+					if (disabledEntries.length === 0) {
+						toast$1("「" + pickedWB + "」中没有关闭的条目", true);
+						doRollFallback();
+						return;
+					}
+					var pickedEntry = disabledEntries[Math.floor(Math.random() * disabledEntries.length)];
+					enableWorldBookEntry(ctx, pickedWB, pickedEntry.id).then(function(enabledEntry) {
+						if (!enabledEntry) {
+							toast$1("启用世界书条目失败", true);
+							return;
+						}
+						dd = load$1();
+						dd.lastAutoEnabledEntry = {
+							wbName: pickedWB,
+							entryId: pickedEntry.id
+						};
+						save$1(dd);
+						var entryName = pickedEntry.comment || (Array.isArray(pickedEntry.key) ? pickedEntry.key.join(", ") : pickedEntry.key || "未命名");
+						var entryContent = pickedEntry.content || "（无内容）";
+						var h = "<div style=\"padding:4px 0\">";
+						h += "<div style=\"font-size:.85em;opacity:.6;margin-bottom:4px\">来自 <strong>" + esc$2(pickedWB) + "</strong></div>";
+						h += "<div style=\"font-weight:600;font-size:1em;margin-bottom:8px\">" + esc$2(entryName) + "</div>";
+						h += "<div style=\"background:rgba(127,127,127,.06);border-radius:8px;padding:12px;font-size:.85em;line-height:1.7;white-space:pre-wrap\">" + esc$2(entryContent) + "</div>";
+						h += "</div>";
+						lastResult = {
+							outfits: [{
+								id: "wb_entry_" + pickedEntry.id + "_" + Date.now(),
+								name: entryName,
+								category: "世界书",
+								type: "outfit",
+								style: "",
+								season: "",
+								sceneTag: "",
+								description: entryContent,
+								images: [],
+								isVirtual: true,
+								source: pickedWB
+							}],
+							items: []
+						};
+						sheet.querySelector("#om-roll-result").innerHTML = h;
+						sheet.querySelector("#om-roll-result-area").style.display = "";
+						toast$1("已从「" + pickedWB + "」启用穿搭：" + entryName);
+					}).catch(function(e) {
+						toast$1("启用世界书条目失败：" + e.message, true);
+					});
+				}).catch(function(e) {
+					toast$1("加载世界书失败：" + e.message, true);
+				});
+				return;
+			}
+			doRollFallback();
+		}
+		function doRollFallback() {
 			var ss = sheet.querySelector("#om-roll-style").value;
 			var sn = sheet.querySelector("#om-roll-season").value;
 			var sc = sheet.querySelector("#om-roll-scene").value;
 			var sm = sheet.querySelector("#om-roll-mode").value;
 			var pool = (sheet.querySelector("#om-roll-wb-only") ? sheet.querySelector("#om-roll-wb-only").checked : false) ? [] : allOutfits.slice();
-			var wbList = sheet.querySelector("#om-roll-wb-list");
-			if (wbList) wbList.querySelectorAll("input[type=checkbox].om-roll-wb-book:checked").forEach(function(cb) {
+			var wbList2 = sheet.querySelector("#om-roll-wb-list");
+			if (wbList2) wbList2.querySelectorAll("input[type=checkbox].om-roll-wb-book:checked").forEach(function(cb) {
 				var wbName = cb.value;
 				if (worldBookStyleCache[wbName]) worldBookStyleCache[wbName].forEach(function(ws, wi) {
 					pool.push(createWorldBookOutfit(ws, "wb_dyn_" + wbName.replace(/[^a-zA-Z0-9]/g, "_"), wi));
@@ -3236,12 +3491,15 @@
 				return;
 			}
 			var btnx = this;
+			var existingDesc = sheet.querySelector("#om-ddesc").value.trim();
+			var tagPrompt = ddx.apiVision.autoTagPrompt || "请分析";
+			if (existingDesc) tagPrompt += "\n\n以下是我已有的穿搭文字描述，请结合图片和文字一起分析：\n\"" + existingDesc + "\"\n\n请根据图片和文字描述，补全以下信息（文字描述中已有的信息请优先采用）：";
 			btnx.disabled = true;
 			btnx.innerHTML = "<i class=\"fa-solid fa-spinner fa-spin\"></i> 识别中...";
 			callVisionAPI(ddx.apiVision, {
 				name: sheet.querySelector("#om-dn").value || "穿搭",
 				dataUrl: editImages[0]
-			}, ddx.apiVision.autoTagPrompt, function(err, text) {
+			}, tagPrompt, function(err, text) {
 				btnx.disabled = false;
 				btnx.innerHTML = "<i class=\"fa-solid fa-wand-magic-sparkles\"></i> AI 一键识别";
 				if (err) {
@@ -3256,8 +3514,7 @@
 				if (parsed.style) sheet.querySelector("#om-dstyle").value = parsed.style;
 				if (parsed.season) sheet.querySelector("#om-dseason").value = parsed.season;
 				if (parsed.scene) sheet.querySelector("#om-dscene").value = parsed.scene;
-				if (parsed.description) sheet.querySelector("#om-ddesc").value = parsed.description;
-				toast$1("一键识别完成");
+				toast$1("识别完成，已填写名称/类型/风格/季节/场景");
 			});
 		});
 		sheet.querySelector("#om-dnewcat").addEventListener("click", function() {
@@ -3511,7 +3768,9 @@
 			"<div class=\"om-setting-row\" style=\"display:flex;gap:6px;flex-wrap:wrap\">",
 			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-import-st\" style=\"font-size:.8em\"><i class=\"fa-solid fa-download\"></i> 导入酒馆预设</button>",
 			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-save-st\" style=\"font-size:.8em\"><i class=\"fa-solid fa-upload\"></i> 保存到酒馆预设</button>",
+			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-import-ext\" style=\"font-size:.8em\"><i class=\"fa-solid fa-file-import\"></i> 导入外部预设</button>",
 			"<button class=\"om-btn om-btn-outline\" id=\"om-preset-new-tpl\" style=\"font-size:.8em\"><i class=\"fa-solid fa-plus\"></i> 新建自定义模板</button>",
+			"<input type=\"file\" id=\"om-preset-ext-file\" accept=\".json\" style=\"display:none\" />",
 			"</div>",
 			"<div id=\"om-preset-custom-form\" style=\"display:none;margin:8px 0;padding:12px;background:rgba(127,127,127,.08);border-radius:10px\">",
 			"<div style=\"font-weight:600;font-size:.9em;margin-bottom:8px\">新建自定义模板</div>",
@@ -3597,6 +3856,21 @@
 		});
 		sheet.querySelector("#om-preset-save-st").addEventListener("click", function() {
 			if (!saveToSTPreset(load$1().apiVision || {})) toast$1("保存失败，请检查酒馆版本是否支持", true);
+		});
+		var extFileInput = sheet.querySelector("#om-preset-ext-file");
+		sheet.querySelector("#om-preset-import-ext").addEventListener("click", function() {
+			extFileInput.click();
+		});
+		extFileInput.addEventListener("change", function() {
+			if (this.files && this.files[0]) {
+				importExternalPreset(this.files[0], function(tpl) {
+					if (tpl) {
+						closeSheet(sheet);
+						openSettingsSheet();
+					}
+				});
+				this.value = "";
+			}
 		});
 		sheet.querySelector("#om-preset-new-tpl").addEventListener("click", function() {
 			sheet.querySelector("#om-preset-custom-form").style.display = "block";
@@ -5153,20 +5427,58 @@
 				save$1(dd);
 			}
 		}
-		if ((!dd.activeIds || dd.activeIds.length === 0) && !dd.autoRollDisabled && dd.selectedWorldBookNames.length > 0) refreshWorldBookStyles(dd.selectedWorldBookNames, function() {
-			var styles = getWorldBookStyles(dd.selectedWorldBookNames);
-			if (styles.length > 0) {
-				var pick = styles[Math.floor(Math.random() * styles.length)];
-				var virtual = createWorldBookOutfit(pick, "wb", 0);
-				dd.virtualOutfits[virtual.id] = virtual;
-				dd.activeIds = [virtual.id];
-				save$1(dd);
-				setTimeout(function() {
-					toast$1("今日穿搭：「" + virtual.name + "」（" + (pick.style || "") + "·" + (pick.scene || "") + "）");
-				}, 3500);
-			}
-		});
-		else if (dd.activeIds && dd.activeIds.length > 0) setTimeout(function() {
+		if ((!dd.activeIds || dd.activeIds.length === 0) && !dd.autoRollDisabled && dd.selectedWorldBookNames.length > 0) {
+			var startupCtx = getSTContextSafe();
+			var startupWBNames = dd.selectedWorldBookNames.slice();
+			var startupWB = startupWBNames[Math.floor(Math.random() * startupWBNames.length)];
+			loadWorldBookByName(startupCtx, startupWB).then(function(data) {
+				var disabledEntries = getAllDisabledEntries(data, startupWB);
+				if (disabledEntries.length === 0) return;
+				var pickedEntry = disabledEntries[Math.floor(Math.random() * disabledEntries.length)];
+				return enableWorldBookEntry(startupCtx, startupWB, pickedEntry.id).then(function(enabledEntry) {
+					if (!enabledEntry) return;
+					dd = load();
+					dd.lastAutoEnabledEntry = {
+						wbName: startupWB,
+						entryId: pickedEntry.id
+					};
+					var entryName = pickedEntry.comment || (Array.isArray(pickedEntry.key) ? pickedEntry.key.join(", ") : pickedEntry.key || "世界书穿搭");
+					var virtual = {
+						id: "wb_entry_" + pickedEntry.id + "_" + Date.now(),
+						name: entryName,
+						category: "世界书",
+						type: "outfit",
+						style: "",
+						season: "",
+						sceneTag: "",
+						description: pickedEntry.content || "",
+						images: [],
+						isVirtual: true,
+						source: startupWB
+					};
+					dd.virtualOutfits[virtual.id] = virtual;
+					dd.activeIds = [virtual.id];
+					save$1(dd);
+					setTimeout(function() {
+						toast$1("今日穿搭：「" + entryName + "」（来自 " + startupWB + "）");
+					}, 3500);
+				});
+			}).catch(function() {
+				refreshWorldBookStyles(dd.selectedWorldBookNames, function() {
+					var styles = getWorldBookStyles(dd.selectedWorldBookNames);
+					if (styles.length > 0) {
+						var pick = styles[Math.floor(Math.random() * styles.length)];
+						var virtual = createWorldBookOutfit(pick, "wb", 0);
+						dd.virtualOutfits[virtual.id] = virtual;
+						dd.activeIds = [virtual.id];
+						save$1(dd);
+						setTimeout(function() {
+							toast$1("今日穿搭：「" + virtual.name + "」（" + (pick.style || "") + "·" + (pick.scene || "") + "）");
+						}, 3500);
+					}
+				});
+			});
+		} else if (dd.activeIds && dd.activeIds.length > 0) setTimeout(function() {
 			var names = [];
 			dd.activeIds.forEach(function(id) {
 				var o = null;
